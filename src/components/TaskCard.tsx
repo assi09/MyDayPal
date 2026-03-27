@@ -1,10 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  Calendar, Tag, CheckSquare, ChevronRight,
-  Flag, GripVertical, Trash2
-} from 'lucide-react';
+import { Calendar, CheckSquare, GripVertical, Trash2 } from 'lucide-react';
 import { Task } from '../types';
 import { useStore } from '../store';
 import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';

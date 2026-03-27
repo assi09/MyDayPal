@@ -1,5 +1,4 @@
-import React from 'react';
-import { Search, LayoutGrid, List, SlidersHorizontal, X } from 'lucide-react';
+import { Search, LayoutGrid, List, X } from 'lucide-react';
 import { useStore } from '../store';
 import { Priority } from '../types';
 

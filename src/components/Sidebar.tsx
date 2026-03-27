@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-  LayoutDashboard, FolderOpen, Plus, Trash2, Sun, Moon,
-  CheckSquare, ChevronRight, Layers
+  LayoutDashboard, Plus, Trash2, Sun, Moon,
+  CheckSquare, ChevronRight,
 } from 'lucide-react';
 import { useStore } from '../store';
 

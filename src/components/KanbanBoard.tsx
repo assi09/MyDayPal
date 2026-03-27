@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-  DndContext, DragEndEvent, DragOverEvent, DragStartEvent,
+  DndContext, DragEndEvent, DragStartEvent,
   DragOverlay, PointerSensor, useSensor, useSensors, closestCorners,
 } from '@dnd-kit/core';
 import {
@@ -26,7 +26,7 @@ export default function KanbanBoard() {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null | 'new'>(null);
   const [newTaskStatus, setNewTaskStatus] = useState<Status>('todo');
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [, setDraggingId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -108,7 +108,6 @@ export default function KanbanBoard() {
                 key={col.id}
                 col={col}
                 tasks={colTasks}
-                draggingId={draggingId}
                 onOpen={t => setEditingTask(t)}
                 onAddTask={() => openNewTask(col.id)}
               />
@@ -135,11 +134,10 @@ export default function KanbanBoard() {
 }
 
 function Column({
-  col, tasks, draggingId, onOpen, onAddTask,
+  col, tasks, onOpen, onAddTask,
 }: {
   col: typeof COLUMNS[0];
   tasks: Task[];
-  draggingId: string | null;
   onOpen: (t: Task) => void;
   onAddTask: () => void;
 }) {

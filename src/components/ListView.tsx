@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, ChevronDown, ChevronRight, Check, Calendar, Flag } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, ChevronDown, ChevronRight, Check, Calendar } from 'lucide-react';
 import { Task, Status } from '../types';
 import { useStore, useFilteredTasks } from '../store';
 import { format, isPast, isToday, parseISO } from 'date-fns';
@@ -90,7 +90,6 @@ export default function ListView() {
                     <ListRow
                       key={task.id}
                       task={task}
-                      accent={section.accent}
                       tags={tags.filter(t => task.tags.includes(t.id))}
                       onOpen={() => setEditingTask(task)}
                       onToggleDone={() => moveTask(task.id, task.status === 'done' ? 'todo' : 'done')}
@@ -123,9 +122,8 @@ export default function ListView() {
   );
 }
 
-function ListRow({ task, accent, tags, onOpen, onToggleDone, index }: {
+function ListRow({ task, tags, onOpen, onToggleDone, index }: {
   task: Task;
-  accent: string;
   tags: { id: string; name: string; color: string }[];
   onOpen: () => void;
   onToggleDone: () => void;

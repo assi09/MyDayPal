@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  X, Plus, Trash2, Check, Calendar, Flag,
-  Tag, AlignLeft, Layers, ChevronDown, CheckSquare
+  X, Plus, Trash2, Check, Calendar,
+  Tag, AlignLeft, CheckSquare
 } from 'lucide-react';
-import { Task, Priority, Status, SubTask } from '../types';
+import { Task, Priority, Status } from '../types';
 import { useStore } from '../store';
-import { format } from 'date-fns';
 
 const PRIORITIES: { value: Priority; label: string; color: string }[] = [
   { value: 'high', label: 'High', color: 'var(--priority-high)' },
@@ -152,7 +151,6 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Pro
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
             {/* Status */}
             <MetaSelect
-              label="Status"
               value={status}
               onChange={v => setStatus(v as Status)}
               options={STATUSES.map(s => ({ value: s.value, label: s.label }))}
@@ -180,7 +178,6 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Pro
 
             {/* Project */}
             <MetaSelect
-              label="Project"
               value={projectId ?? ''}
               onChange={v => setProjectId(v || null)}
               options={[
@@ -401,8 +398,8 @@ function Section({ icon, label, children }: { icon: React.ReactNode; label: stri
   );
 }
 
-function MetaSelect({ label, value, onChange, options }: {
-  label: string; value: string;
+function MetaSelect({ value, onChange, options }: {
+  value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
 }) {
