@@ -8,11 +8,13 @@ import ListView from "./components/ListView";
 import CalendarView from "./components/CalendarView";
 import RoadmapView from "./components/RoadmapView";
 import SplashScreen from "./components/SplashScreen";
+import Onboarding, { hasOnboarded } from "./components/Onboarding";
 
 function App() {
   const { theme, viewMode, tasks } = useStore();
   const notifyRef = useRef(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     document.documentElement.className = theme;
@@ -29,9 +31,17 @@ function App() {
     return () => clearInterval(id);
   }, [tasks]);
 
+  function handleSplashDone() {
+    setShowSplash(false);
+    if (!hasOnboarded()) {
+      setShowOnboarding(true);
+    }
+  }
+
   return (
     <>
-    {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
+    {showSplash && <SplashScreen onDone={handleSplashDone} />}
+    {showOnboarding && <Onboarding onDone={() => setShowOnboarding(false)} />}
     <div
       style={{
         display: "flex",
