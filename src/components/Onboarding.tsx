@@ -147,7 +147,7 @@ function useSteps(): Step[] {
             <FeatureChip icon={<LayoutGrid size={14} />} label="Kanban Board" />
             <FeatureChip icon={<CalendarDays size={14} />} label="Calendar View" />
             <FeatureChip icon={<Map size={14} />} label="Smart Roadmap" />
-            <FeatureChip icon={<Sparkles size={14} />} label="Task Scoring" />
+            <FeatureChip icon={<Sparkles size={14} />} label="XP Dashboard" />
           </div>
         </div>
       ),
@@ -178,7 +178,7 @@ function useSteps(): Step[] {
           <ViewCard
             icon={<Map size={18} strokeWidth={1.8} />}
             name="Roadmap"
-            desc="Tree graph or lane view with 5 smart scoring modes"
+            desc="Tree graph, lane view, and XP Dashboard with scoring modes"
             accent="#F59E0B"
           />
         </div>
@@ -227,6 +227,7 @@ function useSteps(): Step[] {
           <TipRow icon={<Sun size={14} />} text="Toggle dark/light mode from the bottom of the sidebar" />
           <TipRow icon={<Moon size={14} />} text="Tasks with due dates trigger desktop notifications when they're due or overdue" />
           <TipRow icon={<Map size={14} />} text="The Roadmap scores tasks automatically — use it to find your best next move" />
+          <TipRow icon={<Sparkles size={14} />} text="Switch to Stats in the Roadmap to see your XP dashboard — track daily, weekly, and monthly output" />
 
           <div style={{
             marginTop: 8, padding: '14px 16px',

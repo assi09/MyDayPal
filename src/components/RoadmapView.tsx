@@ -2,7 +2,8 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import {
   Target, Clock, Zap, TrendingUp, Play,
   CheckCircle2, Calendar, Layers,
-  GitBranch, LayoutList,
+  GitBranch, LayoutList, BarChart3,
+  ZoomIn, ZoomOut, Maximize2,
 } from 'lucide-react';
 import { format, parseISO, differenceInCalendarDays, isValid } from 'date-fns';
 import { Task } from '../types';
@@ -12,6 +13,7 @@ import {
   groupTasksForRoadmap, scoreTask, taskXP,
 } from '../lib/roadmapEngine';
 import TaskModal from './TaskModal';
+import XPDashboard from './XPDashboard';
 
 // ─── Mode catalogue ──────────────────────────────────────────────────────────
 
@@ -33,7 +35,7 @@ const L = {
   GROUP_W:     164,
   GROUP_H:     52,
   TASK_W:      204,
-  TASK_H:      92,
+  TASK_H:      104,
   TASK_GAP:    12,   // horizontal gap between sibling task nodes
   GROUP_GAP:   40,   // horizontal gap between group subtrees
   LEVEL_GAP_1: 82,   // root  → groups
@@ -167,7 +169,7 @@ export default function RoadmapView() {
   const { roadmapMode, setRoadmapMode, moveTask } = useStore();
   const allTasks = useFilteredTasks();
   const [editingTask, setEditingTask] = useState<Task | null | 'new'>(null);
-  const [viewType, setViewType] = useState<'tree' | 'list'>('tree');
+  const [viewType, setViewType] = useState<'tree' | 'list' | 'stats'>('tree');
 
   const allGroups  = useMemo(() => groupTasksForRoadmap(allTasks, roadmapMode), [allTasks, roadmapMode]);
   const treeGroups = useMemo(() => allGroups.filter(g => g.tasks.length > 0), [allGroups]);
@@ -217,6 +219,7 @@ export default function RoadmapView() {
               {([
                 { id: 'tree' as const, icon: <GitBranch size={13} strokeWidth={2} />, label: 'Tree' },
                 { id: 'list' as const, icon: <LayoutList size={13} strokeWidth={2} />, label: 'List' },
+                { id: 'stats' as const, icon: <BarChart3 size={13} strokeWidth={2} />, label: 'Stats' },
               ] as const).map(v => (
                 <button
                   key={v.id}
@@ -300,6 +303,8 @@ export default function RoadmapView() {
             onOpen={t => setEditingTask(t)}
             onShowList={() => setViewType('list')}
           />
+        ) : viewType === 'stats' ? (
+          <XPDashboard tasks={allTasks} />
         ) : (
           <LaneView
             key={roadmapMode}
@@ -334,11 +339,14 @@ function TreeView({
 }) {
   const layout = useMemo(() => computeLayout(groups), [groups]);
   const modeInfo = MODES.find(m => m.id === mode)!;
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+  const [zoom, setZoom] = useState(1);
+  const pendingScroll = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
-    const el = containerRef.current;
+    const el = wrapperRef.current;
     if (!el) return;
     const ro = new ResizeObserver(entries => {
       const { width, height } = entries[0].contentRect;
@@ -349,11 +357,88 @@ function TreeView({
   }, []);
 
   const PAD = 40;
-  const scaleX = containerSize.w > 0 ? (containerSize.w - PAD) / layout.canvasW : 1;
-  const scaleY = containerSize.h > 0 ? (containerSize.h - PAD) / layout.canvasH : 1;
-  const scale  = Math.min(1, scaleX, scaleY);
-  const scaledW = layout.canvasW * scale;
-  const scaledH = layout.canvasH * scale;
+  const fitScaleX = containerSize.w > 0 ? (containerSize.w - PAD) / layout.canvasW : 1;
+  const fitScaleY = containerSize.h > 0 ? (containerSize.h - PAD) / layout.canvasH : 1;
+  const fitScale  = Math.min(1, fitScaleX, fitScaleY);
+  const scale     = fitScale * zoom;
+  const scaledW   = layout.canvasW * scale;
+  const scaledH   = layout.canvasH * scale;
+
+  // Apply pending scroll after React re-renders with new zoom
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !pendingScroll.current) return;
+    el.scrollLeft = pendingScroll.current.x;
+    el.scrollTop = pendingScroll.current.y;
+    pendingScroll.current = null;
+  });
+
+  // Helper: compute padding for centering at a given scale
+  function getPad(s: number) {
+    const sw = layout.canvasW * s;
+    const sh = layout.canvasH * s;
+    return {
+      x: Math.max(20, (containerSize.w - sw) / 2),
+      y: Math.max(20, (containerSize.h - sh) / 2),
+    };
+  }
+
+  // Zoom toward a specific point in container coordinates
+  function zoomTo(factor: number, anchorClientX?: number, anchorClientY?: number) {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const oldZoom = zoom;
+    const newZoom = Math.min(3, Math.max(0.3, oldZoom * factor));
+    if (newZoom === oldZoom) return;
+
+    const oldScale = fitScale * oldZoom;
+    const newScale = fitScale * newZoom;
+    const oldPad = getPad(oldScale);
+    const newPad = getPad(newScale);
+
+    // Anchor point: either cursor position or center of viewport
+    const rect = el.getBoundingClientRect();
+    const viewX = anchorClientX !== undefined ? anchorClientX - rect.left : el.clientWidth / 2;
+    const viewY = anchorClientY !== undefined ? anchorClientY - rect.top : el.clientHeight / 2;
+
+    // Point in content coordinates (within the padding + scaled canvas)
+    const contentX = el.scrollLeft + viewX;
+    const contentY = el.scrollTop + viewY;
+
+    // Convert to canvas coordinates (unscaled)
+    const canvasX = (contentX - oldPad.x) / oldScale;
+    const canvasY = (contentY - oldPad.y) / oldScale;
+
+    // New content position for same canvas point
+    const newContentX = canvasX * newScale + newPad.x;
+    const newContentY = canvasY * newScale + newPad.y;
+
+    pendingScroll.current = {
+      x: newContentX - viewX,
+      y: newContentY - viewY,
+    };
+
+    setZoom(newZoom);
+  }
+
+  // Scroll-wheel zoom toward cursor position
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+      zoomTo(factor, e.clientX, e.clientY);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  });
+
+  function zoomIn()    { zoomTo(1.25); }
+  function zoomOut()   { zoomTo(1 / 1.25); }
+  function zoomReset() { setZoom(1); pendingScroll.current = null; }
 
   if (groups.length === 0) {
     return (
@@ -368,19 +453,46 @@ function TreeView({
     );
   }
 
+  const pad = getPad(scale);
+
   return (
     <div
-      ref={containerRef}
+      ref={wrapperRef}
       className="animate-fade"
-      style={{ flex: 1, overflow: 'auto', display: 'flex', padding: '20px' }}
+      style={{ flex: 1, position: 'relative', overflow: 'hidden' }}
     >
+      {/* Zoom controls — outside scroll container, always fixed in corner */}
+      <div style={{
+        position: 'absolute', top: 12, right: 12, zIndex: 10,
+        display: 'flex', flexDirection: 'column', gap: 2,
+        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+        borderRadius: 'var(--r-md)', padding: 3,
+        boxShadow: 'var(--shadow-sm)',
+      }}>
+        <ZoomBtn onClick={zoomIn} title="Zoom in"><ZoomIn size={14} strokeWidth={2} /></ZoomBtn>
+        <ZoomBtn onClick={zoomOut} title="Zoom out"><ZoomOut size={14} strokeWidth={2} /></ZoomBtn>
+        <div style={{ height: 1, background: 'var(--border)', margin: '2px 4px' }} />
+        <ZoomBtn onClick={zoomReset} title="Reset zoom"><Maximize2 size={13} strokeWidth={2} /></ZoomBtn>
+        <div style={{
+          textAlign: 'center', fontSize: 9, fontWeight: 700,
+          color: 'var(--text-muted)', padding: '2px 0',
+        }}>
+          {Math.round(zoom * 100)}%
+        </div>
+      </div>
+
+      {/* Scroll container */}
+      <div
+        ref={containerRef}
+        style={{ width: '100%', height: '100%', overflow: 'auto' }}
+      >
+      {/* Centering wrapper — padding centers when small, allows equal scroll when zoomed */}
+      <div style={{ padding: `${pad.y}px ${pad.x}px` }}>
       {/* Scale wrapper — sized to the visual footprint of the scaled canvas */}
       <div style={{
         position: 'relative',
         width: scaledW,
         height: scaledH,
-        margin: 'auto',
-        flexShrink: 0,
       }}>
         {/* Actual canvas rendered at full resolution then scaled */}
         <div style={{
@@ -535,7 +647,32 @@ function TreeView({
         })}
         </div>{/* end: full-res canvas */}
       </div>{/* end: scale wrapper */}
+      </div>{/* end: centering wrapper */}
+      </div>{/* end: scroll container */}
     </div>
+  );
+}
+
+// ─── Zoom button ──────────────────────────────────────────────────────────────
+
+function ZoomBtn({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className="btn-press"
+      style={{
+        width: 30, height: 30, borderRadius: 'var(--r-xs)',
+        border: 'none', background: 'transparent',
+        color: 'var(--text-secondary)', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'all var(--t-fast)',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -691,7 +828,7 @@ function LaneView({
 }) {
   return (
     <div className="animate-fade" style={{
-      flex: 1, display: 'flex', overflowX: 'auto', overflowY: 'hidden',
+      flex: 1, display: 'flex', overflow: 'auto',
       padding: '20px 24px 24px', gap: 14, alignItems: 'stretch',
     }}>
       {groups.map(group => (
