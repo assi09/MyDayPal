@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import {
   LayoutDashboard, Plus, Trash2, Sun, Moon,
-  CheckSquare, ChevronRight,
+  ChevronRight,
 } from 'lucide-react';
 import { useStore } from '../store';
+import iconMark from '../assets/icon-mark.svg';
 
 const PROJECT_COLORS = [
   '#7c6af7', '#f87171', '#34d399', '#fbbf24',
@@ -42,23 +43,36 @@ export default function Sidebar() {
         gap: 0,
       }}
     >
-      {/* Logo */}
-      <div style={{ padding: '0 24px 28px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{
-          width: 38, height: 38, borderRadius: 12,
-          background: 'linear-gradient(135deg, #7c6af7, #a78bfa)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 6px 16px rgba(124,106,247,0.45)',
-          flexShrink: 0,
-        }}>
-          <CheckSquare size={20} color="#fff" strokeWidth={2.5} />
-        </div>
+      {/* Logo — clicking goes to All Tasks */}
+      <div
+        onClick={() => setActiveProject(null)}
+        style={{
+          padding: '0 24px 28px',
+          display: 'flex', alignItems: 'center', gap: 12,
+          cursor: 'pointer',
+        }}
+      >
+        <img
+          src={iconMark}
+          alt="MyDayPal"
+          style={{
+            width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+            boxShadow: '0 4px 14px rgba(24, 95, 165, 0.5)',
+          }}
+        />
         <div>
-          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: '-0.4px', color: 'var(--text-primary)', display: 'block' }}>
+          <span style={{
+            fontFamily: 'Georgia, serif',
+            fontWeight: 400, fontSize: 18,
+            letterSpacing: '-0.3px',
+            color: '#85B7EB',
+            display: 'block',
+            lineHeight: 1.1,
+          }}>
             MyDayPal
           </span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
-            Your focus space
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400, letterSpacing: '0.04em' }}>
+            YOUR DAILY COMPANION
           </span>
         </div>
       </div>
