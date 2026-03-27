@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "./store";
 import { checkAndNotify } from "./notifications";
 import Sidebar from "./components/Sidebar";
@@ -7,10 +7,12 @@ import KanbanBoard from "./components/KanbanBoard";
 import ListView from "./components/ListView";
 import CalendarView from "./components/CalendarView";
 import RoadmapView from "./components/RoadmapView";
+import SplashScreen from "./components/SplashScreen";
 
 function App() {
   const { theme, viewMode, tasks } = useStore();
   const notifyRef = useRef(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     document.documentElement.className = theme;
@@ -28,6 +30,8 @@ function App() {
   }, [tasks]);
 
   return (
+    <>
+    {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
     <div
       style={{
         display: "flex",
@@ -54,6 +58,7 @@ function App() {
         {viewMode === "roadmap"  && <RoadmapView />}
       </div>
     </div>
+    </>
   );
 }
 
