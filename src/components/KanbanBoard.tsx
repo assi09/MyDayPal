@@ -13,10 +13,10 @@ import { useStore, useFilteredTasks } from '../store';
 import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
 
-const COLUMNS: { id: Status; label: string; emoji: string; accent: string }[] = [
-  { id: 'todo', label: 'To Do', emoji: '📋', accent: '#818cf8' },
-  { id: 'ongoing', label: 'Ongoing', emoji: '⚡', accent: '#fbbf24' },
-  { id: 'done', label: 'Done', emoji: '✅', accent: '#34d399' },
+const COLUMNS: { id: Status; label: string; accent: string; dot: string }[] = [
+  { id: 'todo', label: 'To Do', accent: '#818cf8', dot: '#818cf8' },
+  { id: 'ongoing', label: 'In Progress', accent: '#f59e0b', dot: '#f59e0b' },
+  { id: 'done', label: 'Done', accent: '#10b981', dot: '#10b981' },
 ];
 
 export default function KanbanBoard() {
@@ -52,14 +52,12 @@ export default function KanbanBoard() {
     const taskId = String(active.id);
     const overId = String(over.id);
 
-    // Over a column droppable
     const overColumn = COLUMNS.find(c => c.id === overId);
     if (overColumn) {
       moveTask(taskId, overColumn.id);
       return;
     }
 
-    // Over another task
     const overTask = allTasks.find(t => t.id === overId);
     if (!overTask) return;
 
@@ -70,7 +68,6 @@ export default function KanbanBoard() {
       moveTask(taskId, overTask.status);
     }
 
-    // Reorder within column
     const colTasks = allTasks
       .filter(t => t.status === overTask.status)
       .sort((a, b) => a.order - b.order);
@@ -98,8 +95,12 @@ export default function KanbanBoard() {
         onDragEnd={handleDragEnd}
       >
         <div style={{
-          display: 'flex', gap: 16, flex: 1, overflowX: 'auto',
-          padding: '20px 28px 24px', alignItems: 'flex-start',
+          display: 'flex',
+          gap: 20,
+          flex: 1,
+          overflow: 'auto',
+          padding: '24px 32px 32px',
+          alignItems: 'stretch',
         }}>
           {COLUMNS.map(col => {
             const colTasks = tasksByStatus(col.id);
@@ -145,51 +146,77 @@ function Column({
 
   return (
     <div style={{
-      width: 300, minWidth: 300, display: 'flex', flexDirection: 'column', gap: 0,
-      transition: 'opacity var(--transition)',
+      flex: 1,
+      minWidth: 280,
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'var(--bg-secondary)',
+      border: '1px solid var(--border)',
+      borderRadius: 18,
+      overflow: 'hidden',
     }}>
       {/* Column header */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '18px 20px 14px',
+        borderBottom: `2px solid ${col.accent}33`,
       }}>
-        <span style={{ fontSize: 16 }}>{col.emoji}</span>
-        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+        <div style={{
+          width: 10, height: 10, borderRadius: '50%',
+          background: col.accent,
+          boxShadow: `0 0 8px ${col.accent}88`,
+          flexShrink: 0,
+        }} />
+        <span style={{
+          fontSize: 15, fontWeight: 700,
+          color: 'var(--text-primary)',
+          letterSpacing: '-0.2px',
+          flex: 1,
+        }}>
           {col.label}
         </span>
         <span style={{
-          fontSize: 11, fontWeight: 600, padding: '2px 7px',
-          borderRadius: 99, background: col.accent + '22', color: col.accent,
-          marginLeft: 2,
+          fontSize: 12, fontWeight: 700,
+          padding: '3px 10px',
+          borderRadius: 99,
+          background: col.accent + '20',
+          color: col.accent,
         }}>
           {tasks.length}
         </span>
-        <div style={{ flex: 1 }} />
         <button
           onClick={onAddTask}
           style={{
-            background: 'none', border: 'none', color: 'var(--text-muted)',
-            display: 'flex', alignItems: 'center', gap: 4,
-            fontSize: 12, cursor: 'pointer', padding: '4px 6px',
-            borderRadius: 6, transition: 'all var(--transition)',
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '6px 12px', borderRadius: 8, border: 'none',
+            background: col.accent + '18',
+            color: col.accent,
+            fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            transition: 'all var(--transition)',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = col.accent; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+          onMouseEnter={e => { e.currentTarget.style.background = col.accent; e.currentTarget.style.color = '#fff'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = col.accent + '18'; e.currentTarget.style.color = col.accent; }}
         >
-          <Plus size={14} /> Add
+          <Plus size={13} strokeWidth={2.5} />
+          Add
         </button>
       </div>
 
-      {/* Drop zone */}
+      {/* Drop zone / task list */}
       <div
         ref={setNodeRef}
         style={{
-          display: 'flex', flexDirection: 'column', gap: 8,
-          minHeight: 80,
-          background: isOver ? col.accent + '0a' : 'transparent',
-          borderRadius: 14,
-          border: isOver ? `2px dashed ${col.accent}55` : '2px dashed transparent',
-          padding: isOver ? 8 : 0,
-          transition: 'all 0.15s ease',
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          padding: '14px 14px',
+          overflowY: 'auto',
+          background: isOver ? col.accent + '08' : 'transparent',
+          transition: 'background 0.15s ease',
+          minHeight: 120,
         }}
       >
         <SortableContext
@@ -198,21 +225,36 @@ function Column({
         >
           {tasks.map(task => (
             <div key={task.id} className="animate-fade">
-              <TaskCard
-                task={task}
-                onOpen={onOpen}
-              />
+              <TaskCard task={task} onOpen={onOpen} />
             </div>
           ))}
         </SortableContext>
 
-        {tasks.length === 0 && !isOver && (
+        {tasks.length === 0 && (
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            height: 80, color: 'var(--text-muted)', fontSize: 13,
-            borderRadius: 12, border: '1px dashed var(--border)',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            padding: '40px 20px',
+            color: 'var(--text-muted)',
+            fontSize: 13,
+            borderRadius: 12,
+            border: `1.5px dashed ${col.accent}33`,
+            margin: 4,
           }}>
-            Drop here
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: col.accent + '15',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Plus size={18} color={col.accent} strokeWidth={1.5} />
+            </div>
+            <span style={{ color: col.accent + 'bb', fontWeight: 500 }}>
+              No tasks yet
+            </span>
           </div>
         )}
       </div>

@@ -31,34 +31,40 @@ export default function Sidebar() {
   return (
     <aside
       style={{
-        width: 220,
-        minWidth: 220,
+        width: 260,
+        minWidth: 260,
         height: '100vh',
         background: 'var(--bg-secondary)',
         borderRight: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
-        padding: '20px 0',
+        padding: '28px 0',
         gap: 0,
       }}
     >
       {/* Logo */}
-      <div style={{ padding: '0 20px 24px', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ padding: '0 24px 28px', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{
-          width: 32, height: 32, borderRadius: 10,
+          width: 38, height: 38, borderRadius: 12,
           background: 'linear-gradient(135deg, #7c6af7, #a78bfa)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(124,106,247,0.4)',
+          boxShadow: '0 6px 16px rgba(124,106,247,0.45)',
+          flexShrink: 0,
         }}>
-          <CheckSquare size={17} color="#fff" strokeWidth={2.5} />
+          <CheckSquare size={20} color="#fff" strokeWidth={2.5} />
         </div>
-        <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.3px', color: 'var(--text-primary)' }}>
-          MyDayPal
-        </span>
+        <div>
+          <span style={{ fontWeight: 800, fontSize: 17, letterSpacing: '-0.4px', color: 'var(--text-primary)', display: 'block' }}>
+            MyDayPal
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+            Your focus space
+          </span>
+        </div>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, overflowY: 'auto', padding: '0 10px' }}>
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '0 14px' }}>
         {/* All Tasks */}
         <SidebarItem
           icon={<LayoutDashboard size={16} />}
@@ -185,7 +191,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom: theme toggle */}
-      <div style={{ padding: '12px 10px 0', borderTop: '1px solid var(--border)' }}>
+      <div style={{ padding: '16px 14px 0', borderTop: '1px solid var(--border)' }}>
         <SidebarItem
           icon={theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           label={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
@@ -210,11 +216,11 @@ function SidebarItem({
     <button
       onClick={onClick}
       style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-        padding: '8px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+        width: '100%', display: 'flex', alignItems: 'center', gap: 11,
+        padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer',
         background: active ? 'var(--accent-soft)' : 'transparent',
         color: active ? 'var(--accent)' : 'var(--text-secondary)',
-        fontSize: 13, fontWeight: active ? 600 : 400,
+        fontSize: 14, fontWeight: active ? 600 : 400,
         transition: 'background var(--transition), color var(--transition)',
         textAlign: 'left',
         ...extraStyle,
