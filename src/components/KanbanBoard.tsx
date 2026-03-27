@@ -13,10 +13,15 @@ import { useStore, useFilteredTasks } from '../store';
 import TaskCard from './TaskCard';
 import TaskModal from './TaskModal';
 
-const COLUMNS: { id: Status; label: string; accent: string; dot: string }[] = [
-  { id: 'todo', label: 'To Do', accent: '#818cf8', dot: '#818cf8' },
-  { id: 'ongoing', label: 'In Progress', accent: '#f59e0b', dot: '#f59e0b' },
-  { id: 'done', label: 'Done', accent: '#10b981', dot: '#10b981' },
+const COLUMNS: {
+  id: Status;
+  label: string;
+  accent: string;
+  tint: string;
+}[] = [
+  { id: 'todo',    label: 'To Do',       accent: '#6366F1', tint: 'rgba(99,102,241,0.032)' },
+  { id: 'ongoing', label: 'In Progress', accent: '#F59E0B', tint: 'rgba(245,158,11,0.032)' },
+  { id: 'done',    label: 'Done',        accent: '#22C55E', tint: 'rgba(34,197,94,0.032)' },
 ];
 
 export default function KanbanBoard() {
@@ -96,10 +101,10 @@ export default function KanbanBoard() {
       >
         <div style={{
           display: 'flex',
-          gap: 20,
+          gap: 16,
           flex: 1,
           overflow: 'auto',
-          padding: '24px 32px 32px',
+          padding: '20px 24px 28px',
           alignItems: 'stretch',
         }}>
           {COLUMNS.map(col => {
@@ -116,7 +121,7 @@ export default function KanbanBoard() {
           })}
         </div>
 
-        <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+        <DragOverlay dropAnimation={{ duration: 160, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
           {activeTask && (
             <TaskCard task={activeTask} onOpen={() => {}} overlay />
           )}
@@ -143,119 +148,159 @@ function Column({
   onAddTask: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
+  const [addHover, setAddHover] = useState(false);
 
   return (
     <div style={{
       flex: 1,
-      minWidth: 280,
+      minWidth: 272,
       display: 'flex',
       flexDirection: 'column',
-      background: 'var(--bg-secondary)',
-      border: '1px solid var(--border)',
-      borderRadius: 18,
+      background: isOver ? col.tint : 'var(--bg-secondary)',
+      border: `1px solid ${isOver ? col.accent + '30' : 'var(--border)'}`,
+      borderRadius: 'var(--r-lg)',
       overflow: 'hidden',
+      boxShadow: 'var(--shadow-xs)',
+      transition: 'background var(--t-base), border-color var(--t-base)',
     }}>
-      {/* Column header */}
+
+      {/* ── Column header ── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
-        padding: '18px 20px 14px',
-        borderBottom: `2px solid ${col.accent}33`,
+        gap: 8,
+        padding: '14px 16px 12px',
+        borderBottom: `1px solid var(--border)`,
       }}>
+        {/* Status indicator */}
         <div style={{
-          width: 10, height: 10, borderRadius: '50%',
+          width: 7, height: 7,
+          borderRadius: '50%',
           background: col.accent,
-          boxShadow: `0 0 8px ${col.accent}88`,
           flexShrink: 0,
+          boxShadow: `0 0 0 2px ${col.accent}28`,
         }} />
+
         <span style={{
-          fontSize: 15, fontWeight: 700,
+          fontSize: 13.5,
+          fontWeight: 700,
           color: 'var(--text-primary)',
           letterSpacing: '-0.2px',
           flex: 1,
         }}>
           {col.label}
         </span>
+
+        {/* Count badge */}
         <span style={{
-          fontSize: 12, fontWeight: 700,
-          padding: '3px 10px',
-          borderRadius: 99,
-          background: col.accent + '20',
+          fontSize: 11.5,
+          fontWeight: 700,
+          minWidth: 22,
+          height: 22,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          borderRadius: 'var(--r-xs)',
+          background: col.accent + '16',
           color: col.accent,
+          letterSpacing: '-0.2px',
         }}>
           {tasks.length}
         </span>
+
+        {/* Add button */}
         <button
           onClick={onAddTask}
+          onMouseEnter={() => setAddHover(true)}
+          onMouseLeave={() => setAddHover(false)}
+          className="btn-press"
           style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            padding: '6px 12px', borderRadius: 8, border: 'none',
-            background: col.accent + '18',
-            color: col.accent,
-            fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            transition: 'all var(--transition)',
+            width: 26, height: 26,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 'var(--r-xs)',
+            border: 'none',
+            background: addHover ? col.accent : col.accent + '16',
+            color: addHover ? '#fff' : col.accent,
+            cursor: 'pointer',
+            transition: 'background var(--t-base), color var(--t-base)',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = col.accent; e.currentTarget.style.color = '#fff'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = col.accent + '18'; e.currentTarget.style.color = col.accent; }}
+          title={`Add task to ${col.label}`}
         >
-          <Plus size={13} strokeWidth={2.5} />
-          Add
+          <Plus size={14} strokeWidth={2.5} />
         </button>
       </div>
 
-      {/* Drop zone / task list */}
+      {/* ── Task list / drop zone ── */}
       <div
         ref={setNodeRef}
         style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          gap: 10,
-          padding: '14px 14px',
+          gap: 8,
+          padding: '10px 10px 12px',
           overflowY: 'auto',
-          background: isOver ? col.accent + '08' : 'transparent',
-          transition: 'background 0.15s ease',
-          minHeight: 120,
+          minHeight: 80,
         }}
       >
         <SortableContext
           items={tasks.map(t => t.id)}
           strategy={verticalListSortingStrategy}
         >
-          {tasks.map(task => (
-            <div key={task.id} className="animate-fade">
+          {tasks.map((task, i) => (
+            <div
+              key={task.id}
+              className="animate-fade"
+              style={{ animationDelay: `${i * 0.025}s` }}
+            >
               <TaskCard task={task} onOpen={onOpen} />
             </div>
           ))}
         </SortableContext>
 
+        {/* Empty state */}
         {tasks.length === 0 && (
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            padding: '40px 20px',
-            color: 'var(--text-muted)',
-            fontSize: 13,
-            borderRadius: 12,
-            border: `1.5px dashed ${col.accent}33`,
-            margin: 4,
-          }}>
+          <button
+            onClick={onAddTask}
+            className="btn-press"
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '36px 20px',
+              margin: 2,
+              color: 'var(--text-muted)',
+              fontSize: 12.5,
+              fontWeight: 500,
+              fontFamily: 'inherit',
+              borderRadius: 'var(--r-md)',
+              border: `1.5px dashed ${col.accent}30`,
+              background: 'transparent',
+              cursor: 'pointer',
+              transition: 'border-color var(--t-base), background var(--t-base), color var(--t-base)',
+              minHeight: 100,
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = col.accent + '60';
+              e.currentTarget.style.background = col.accent + '06';
+              e.currentTarget.style.color = col.accent;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = col.accent + '30';
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = 'var(--text-muted)';
+            }}
+          >
             <div style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: col.accent + '15',
+              width: 32, height: 32, borderRadius: '50%',
+              background: col.accent + '14',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Plus size={18} color={col.accent} strokeWidth={1.5} />
+              <Plus size={16} color={col.accent} strokeWidth={2} />
             </div>
-            <span style={{ color: col.accent + 'bb', fontWeight: 500 }}>
-              No tasks yet
-            </span>
-          </div>
+            <span>Add a task</span>
+          </button>
         )}
       </div>
     </div>

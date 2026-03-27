@@ -1,262 +1,307 @@
 import { useState } from 'react';
-import {
-  LayoutDashboard, Plus, Trash2, Sun, Moon,
-  ChevronRight,
-} from 'lucide-react';
+import { Sun, Moon, Layers, Plus, Trash2, LayoutGrid, List, CalendarDays, Map } from 'lucide-react';
 import { useStore } from '../store';
 import iconMark from '../assets/icon-mark.svg';
 
 const PROJECT_COLORS = [
-  '#7c6af7', '#f87171', '#34d399', '#fbbf24',
-  '#60a5fa', '#f472b6', '#a78bfa', '#2dd4bf',
+  '#6366F1', '#EC4899', '#F59E0B', '#22C55E',
+  '#14B8A6', '#3B82F6', '#EF4444', '#A855F7',
 ];
 
 export default function Sidebar() {
   const {
-    projects, activeProjectId, theme,
-    addProject, deleteProject, setActiveProject, toggleTheme,
+    theme, toggleTheme,
+    projects, activeProjectId, setActiveProject,
+    addProject, deleteProject,
+    viewMode, setViewMode,
   } = useStore();
 
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState(PROJECT_COLORS[0]);
+  const [addingProject, setAddingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectColor, setNewProjectColor] = useState(PROJECT_COLORS[0]);
+  const [hoveredProject, setHoveredProject] = useState<string | null>(null);
 
-  function handleAdd() {
-    if (!newName.trim()) return;
-    addProject(newName.trim(), newColor);
-    setNewName('');
-    setNewColor(PROJECT_COLORS[0]);
-    setAdding(false);
+  function handleAddProject() {
+    if (!newProjectName.trim()) return;
+    addProject(newProjectName.trim(), newProjectColor);
+    setNewProjectName('');
+    setNewProjectColor(PROJECT_COLORS[0]);
+    setAddingProject(false);
   }
 
   return (
-    <aside
-      style={{
-        width: 260,
-        minWidth: 260,
-        height: '100vh',
-        background: 'var(--bg-secondary)',
-        borderRight: '1px solid var(--border)',
+    <aside style={{
+      width: 252,
+      flexShrink: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'var(--bg-sidebar)',
+      borderRight: '1px solid var(--border)',
+      overflow: 'hidden',
+    }}>
+
+      {/* ── Branding ── */}
+      <div style={{
+        padding: '22px 20px 16px',
         display: 'flex',
-        flexDirection: 'column',
-        padding: '28px 0',
-        gap: 0,
-      }}
-    >
-      {/* Logo — clicking goes to All Tasks */}
-      <div
-        onClick={() => setActiveProject(null)}
-        style={{
-          padding: '0 24px 28px',
-          display: 'flex', alignItems: 'center', gap: 12,
-          cursor: 'pointer',
-        }}
-      >
-        <img
-          src={iconMark}
-          alt="MyDayPal"
+        alignItems: 'center',
+        gap: 10,
+      }}>
+        <button
+          onClick={() => setActiveProject(null)}
           style={{
-            width: 40, height: 40, borderRadius: 11, flexShrink: 0,
-            boxShadow: '0 4px 14px rgba(24, 95, 165, 0.5)',
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            borderRadius: 8,
           }}
-        />
-        <div>
+        >
+          <img
+            src={iconMark}
+            alt="MyDayPal"
+            style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0 }}
+          />
           <span style={{
-            fontFamily: 'Georgia, serif',
-            fontWeight: 400, fontSize: 18,
-            letterSpacing: '-0.3px',
-            color: '#85B7EB',
-            display: 'block',
-            lineHeight: 1.1,
+            fontSize: 16,
+            fontWeight: 800,
+            letterSpacing: '-0.5px',
+            color: 'var(--text-primary)',
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
           }}>
             MyDayPal
           </span>
-          <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400, letterSpacing: '0.04em' }}>
-            YOUR DAILY COMPANION
-          </span>
+        </button>
+      </div>
+
+      {/* ── Nav ── */}
+      <nav style={{ padding: '4px 12px 0', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <SectionLabel>Views</SectionLabel>
+
+        <button
+          className={`sidebar-item btn-press ${activeProjectId === null ? 'active' : ''}`}
+          onClick={() => setActiveProject(null)}
+        >
+          <Layers size={15} strokeWidth={1.8} />
+          All Tasks
+        </button>
+      </nav>
+
+      {/* ── View Mode Switcher ── */}
+      <div style={{ padding: '12px 12px 0' }}>
+        <SectionLabel>Layout</SectionLabel>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+          {[
+            { id: 'kanban'   as const, label: 'Board',    icon: <LayoutGrid size={15} strokeWidth={1.8} /> },
+            { id: 'list'     as const, label: 'List',     icon: <List size={15} strokeWidth={1.8} /> },
+            { id: 'calendar' as const, label: 'Calendar', icon: <CalendarDays size={15} strokeWidth={1.8} /> },
+            { id: 'roadmap'  as const, label: 'Roadmap',  icon: <Map size={15} strokeWidth={1.8} /> },
+          ].map(v => (
+            <button
+              key={v.id}
+              className={`sidebar-item btn-press ${viewMode === v.id ? 'active' : ''}`}
+              onClick={() => setViewMode(v.id)}
+            >
+              {v.icon}
+              {v.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, overflowY: 'auto', padding: '0 14px' }}>
-        {/* All Tasks */}
-        <SidebarItem
-          icon={<LayoutDashboard size={16} />}
-          label="All Tasks"
-          active={activeProjectId === null}
-          onClick={() => setActiveProject(null)}
-        />
+      {/* ── Projects ── */}
+      <div style={{ padding: '16px 12px 0', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+          <SectionLabel style={{ flex: 1, marginBottom: 0 }}>Projects</SectionLabel>
+          <button
+            onClick={() => setAddingProject(true)}
+            style={{
+              width: 22, height: 22,
+              borderRadius: 6,
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'background var(--t-base), color var(--t-base)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            title="New project"
+          >
+            <Plus size={13} strokeWidth={2.5} />
+          </button>
+        </div>
 
-        {/* Projects section */}
-        <div style={{ marginTop: 20 }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0 10px', marginBottom: 6,
-          }}>
-            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
-              Projects
-            </span>
-            <button
-              onClick={() => setAdding(true)}
-              style={{
-                background: 'none', border: 'none', color: 'var(--text-muted)',
-                cursor: 'pointer', padding: 2, borderRadius: 4, display: 'flex',
-                transition: 'color var(--transition)',
+        {/* New project input */}
+        {addingProject && (
+          <div className="animate-fadeup" style={{ marginBottom: 6 }}>
+            <input
+              autoFocus
+              value={newProjectName}
+              onChange={e => setNewProjectName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleAddProject();
+                if (e.key === 'Escape') { setAddingProject(false); setNewProjectName(''); }
               }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              <Plus size={14} />
-            </button>
+              placeholder="Project name…"
+              className="field-focus"
+              style={{
+                width: '100%',
+                padding: '7px 10px',
+                borderRadius: 8,
+                border: '1px solid var(--border-strong)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                marginBottom: 6,
+              }}
+            />
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '0 2px 6px' }}>
+              {PROJECT_COLORS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setNewProjectColor(c)}
+                  style={{
+                    width: 18, height: 18, borderRadius: '50%',
+                    background: c,
+                    border: newProjectColor === c ? `2.5px solid var(--text-primary)` : '2.5px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'border-color var(--t-fast)',
+                    outline: 'none',
+                    boxShadow: newProjectColor === c ? `0 0 0 1px ${c}` : 'none',
+                  }}
+                />
+              ))}
+            </div>
           </div>
+        )}
 
+        {/* Project list */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {projects.length === 0 && !addingProject && (
+            <div style={{
+              padding: '12px 8px',
+              fontSize: 12,
+              color: 'var(--text-muted)',
+              lineHeight: 1.5,
+            }}>
+              No projects yet. Hit + to create one.
+            </div>
+          )}
           {projects.map(p => (
             <div
               key={p.id}
-              style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+              style={{ position: 'relative' }}
+              onMouseEnter={() => setHoveredProject(p.id)}
+              onMouseLeave={() => setHoveredProject(null)}
             >
-              <SidebarItem
-                icon={
-                  <span style={{
-                    width: 8, height: 8, borderRadius: '50%',
-                    background: p.color, display: 'inline-block', flexShrink: 0,
-                  }} />
-                }
-                label={p.name}
-                active={activeProjectId === p.id}
-                onClick={() => setActiveProject(p.id)}
-                style={{ flex: 1 }}
-              />
               <button
-                onClick={() => deleteProject(p.id)}
-                style={{
-                  background: 'none', border: 'none', color: 'transparent',
-                  cursor: 'pointer', padding: '6px 6px', borderRadius: 6,
-                  display: 'flex', transition: 'color var(--transition)',
+                className={`sidebar-item btn-press ${activeProjectId === p.id ? 'active' : ''}`}
+                onClick={() => setActiveProject(p.id)}
+                style={{ paddingRight: 32 }}
+              >
+                <div style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: p.color,
                   flexShrink: 0,
+                  boxShadow: activeProjectId === p.id ? `0 0 6px ${p.color}88` : 'none',
+                  transition: 'box-shadow var(--t-base)',
+                }} />
+                <span style={{
+                  flex: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {p.name}
+                </span>
+              </button>
+
+              {/* Delete button (hover only) */}
+              <button
+                onClick={e => { e.stopPropagation(); deleteProject(p.id); }}
+                style={{
+                  position: 'absolute',
+                  right: 8, top: '50%', transform: 'translateY(-50%)',
+                  width: 20, height: 20, borderRadius: 5,
+                  border: 'none', background: 'transparent',
+                  color: 'var(--text-muted)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                  opacity: hoveredProject === p.id ? 1 : 0,
+                  transition: 'opacity var(--t-base), color var(--t-fast)',
                 }}
                 onMouseEnter={e => (e.currentTarget.style.color = 'var(--priority-high)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'transparent')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
               >
-                <Trash2 size={12} />
+                <Trash2 size={11} />
               </button>
             </div>
           ))}
-
-          {/* Add project form */}
-          {adding && (
-            <div className="animate-fade" style={{
-              margin: '8px 4px',
-              background: 'var(--bg-tertiary)',
-              border: '1px solid var(--border)',
-              borderRadius: 10,
-              padding: 10,
-            }}>
-              <input
-                autoFocus
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAdding(false); }}
-                placeholder="Project name…"
-                style={{
-                  width: '100%', background: 'none', border: 'none',
-                  color: 'var(--text-primary)', fontSize: 13, marginBottom: 8,
-                  padding: '2px 0',
-                }}
-              />
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-                {PROJECT_COLORS.map(c => (
-                  <button
-                    key={c}
-                    onClick={() => setNewColor(c)}
-                    style={{
-                      width: 16, height: 16, borderRadius: '50%', background: c,
-                      border: newColor === c ? '2px solid white' : '2px solid transparent',
-                      cursor: 'pointer', padding: 0,
-                      outline: newColor === c ? `2px solid ${c}` : 'none',
-                      outlineOffset: 1,
-                    }}
-                  />
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  onClick={handleAdd}
-                  style={{
-                    flex: 1, background: 'var(--accent)', border: 'none', color: '#fff',
-                    borderRadius: 6, padding: '5px 0', fontSize: 12, fontWeight: 600,
-                  }}
-                >
-                  Add
-                </button>
-                <button
-                  onClick={() => setAdding(false)}
-                  style={{
-                    flex: 1, background: 'var(--bg-hover)', border: 'none',
-                    color: 'var(--text-secondary)', borderRadius: 6, padding: '5px 0', fontSize: 12,
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
         </div>
-      </nav>
+      </div>
 
-      {/* Bottom: theme toggle */}
-      <div style={{ padding: '16px 14px 0', borderTop: '1px solid var(--border)' }}>
-        <SidebarItem
-          icon={theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          label={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-          active={false}
+      {/* ── Bottom: Theme toggle ── */}
+      <div style={{
+        padding: '12px 12px 20px',
+        borderTop: '1px solid var(--border)',
+        marginTop: 8,
+      }}>
+        <button
           onClick={toggleTheme}
-        />
+          className="sidebar-item btn-press"
+          style={{ width: '100%', justifyContent: 'space-between' }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {theme === 'dark'
+              ? <Moon size={15} strokeWidth={1.8} />
+              : <Sun size={15} strokeWidth={1.8} />
+            }
+            {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+          </span>
+          {/* Toggle pill */}
+          <div style={{
+            width: 34, height: 19, borderRadius: 10,
+            background: theme === 'dark' ? 'var(--accent)' : 'var(--bg-hover)',
+            border: '1px solid var(--border)',
+            position: 'relative',
+            transition: 'background var(--t-base)',
+            flexShrink: 0,
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: 2,
+              left: theme === 'dark' ? 16 : 2,
+              width: 13, height: 13,
+              borderRadius: '50%',
+              background: theme === 'dark' ? '#fff' : 'var(--text-muted)',
+              transition: 'left var(--t-spring)',
+            }} />
+          </div>
+        </button>
       </div>
     </aside>
   );
 }
 
-function SidebarItem({
-  icon, label, active, onClick, style: extraStyle,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  style?: React.CSSProperties;
-}) {
+function SectionLabel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 11,
-        padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer',
-        background: active ? 'var(--accent-soft)' : 'transparent',
-        color: active ? 'var(--accent)' : 'var(--text-secondary)',
-        fontSize: 14, fontWeight: active ? 600 : 400,
-        transition: 'background var(--transition), color var(--transition)',
-        textAlign: 'left',
-        ...extraStyle,
-      }}
-      onMouseEnter={e => {
-        if (!active) {
-          e.currentTarget.style.background = 'var(--bg-hover)';
-          e.currentTarget.style.color = 'var(--text-primary)';
-        }
-      }}
-      onMouseLeave={e => {
-        if (!active) {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = 'var(--text-secondary)';
-        }
-      }}
-    >
-      {icon}
-      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {label}
-      </span>
-      {active && <ChevronRight size={12} style={{ opacity: 0.5, flexShrink: 0 }} />}
-    </button>
+    <div style={{
+      fontSize: 10.5,
+      fontWeight: 700,
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      color: 'var(--text-muted)',
+      padding: '0 4px',
+      marginBottom: 4,
+      ...style,
+    }}>
+      {children}
+    </div>
   );
 }

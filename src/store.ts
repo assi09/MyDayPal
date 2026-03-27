@@ -1,49 +1,56 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Task, Project, Tag, Status, Priority, ViewMode, Theme, SubTask } from './types';
+import { RoadmapModeId } from './lib/roadmapEngine';
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 const DEFAULT_TAGS: Tag[] = [
-  { id: 'tag-1', name: 'Work', color: '#818cf8' },
-  { id: 'tag-2', name: 'Personal', color: '#34d399' },
-  { id: 'tag-3', name: 'Urgent', color: '#f87171' },
-  { id: 'tag-4', name: 'Ideas', color: '#fbbf24' },
+  { id: 'tag-1', name: 'Work',     color: '#6366F1' },
+  { id: 'tag-2', name: 'Personal', color: '#22C55E' },
+  { id: 'tag-3', name: 'Urgent',   color: '#EF4444' },
+  { id: 'tag-4', name: 'Ideas',    color: '#F59E0B' },
 ];
 
 interface AppState {
   tasks: Task[];
   projects: Project[];
   tags: Tag[];
-  activeProjectId: string | null; // null = All Tasks
+  activeProjectId: string | null;
   viewMode: ViewMode;
+  roadmapMode: RoadmapModeId;
   theme: Theme;
   searchQuery: string;
   filterPriority: Priority | 'all';
   filterTag: string | 'all';
 
-  // Actions
+  // Task actions
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'order'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   moveTask: (id: string, status: Status) => void;
   reorderTasks: (tasks: Task[]) => void;
 
+  // Project actions
   addProject: (name: string, color: string) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
   deleteProject: (id: string) => void;
 
+  // Tag actions
   addTag: (name: string, color: string) => Tag;
   deleteTag: (id: string) => void;
 
+  // Subtask actions
   addSubtask: (taskId: string, title: string) => void;
   toggleSubtask: (taskId: string, subtaskId: string) => void;
   deleteSubtask: (taskId: string, subtaskId: string) => void;
 
+  // View / filter actions
   setActiveProject: (id: string | null) => void;
   setViewMode: (mode: ViewMode) => void;
+  setRoadmapMode: (mode: RoadmapModeId) => void;
   toggleTheme: () => void;
   setSearchQuery: (q: string) => void;
   setFilterPriority: (p: Priority | 'all') => void;
@@ -58,6 +65,7 @@ export const useStore = create<AppState>()(
       tags: DEFAULT_TAGS,
       activeProjectId: null,
       viewMode: 'kanban',
+      roadmapMode: 'priority',
       theme: 'dark',
       searchQuery: '',
       filterPriority: 'all',
@@ -84,9 +92,7 @@ export const useStore = create<AppState>()(
         });
       },
 
-      deleteTask: (id) => {
-        set({ tasks: get().tasks.filter(t => t.id !== id) });
-      },
+      deleteTask: (id) => set({ tasks: get().tasks.filter(t => t.id !== id) }),
 
       moveTask: (id, status) => {
         set({
@@ -99,19 +105,12 @@ export const useStore = create<AppState>()(
       reorderTasks: (tasks) => set({ tasks }),
 
       addProject: (name, color) => {
-        const project: Project = {
-          id: uid(),
-          name,
-          color,
-          createdAt: new Date().toISOString(),
-        };
+        const project: Project = { id: uid(), name, color, createdAt: new Date().toISOString() };
         set({ projects: [...get().projects, project] });
       },
 
       updateProject: (id, updates) => {
-        set({
-          projects: get().projects.map(p => p.id === id ? { ...p, ...updates } : p),
-        });
+        set({ projects: get().projects.map(p => p.id === id ? { ...p, ...updates } : p) });
       },
 
       deleteProject: (id) => {
@@ -148,12 +147,7 @@ export const useStore = create<AppState>()(
         set({
           tasks: get().tasks.map(t =>
             t.id === taskId
-              ? {
-                  ...t,
-                  subtasks: t.subtasks.map(s =>
-                    s.id === subtaskId ? { ...s, completed: !s.completed } : s
-                  ),
-                }
+              ? { ...t, subtasks: t.subtasks.map(s => s.id === subtaskId ? { ...s, completed: !s.completed } : s) }
               : t
           ),
         });
@@ -169,12 +163,13 @@ export const useStore = create<AppState>()(
         });
       },
 
-      setActiveProject: (id) => set({ activeProjectId: id }),
-      setViewMode: (mode) => set({ viewMode: mode }),
-      toggleTheme: () => set({ theme: get().theme === 'dark' ? 'light' : 'dark' }),
-      setSearchQuery: (q) => set({ searchQuery: q }),
-      setFilterPriority: (p) => set({ filterPriority: p }),
-      setFilterTag: (t) => set({ filterTag: t }),
+      setActiveProject:  (id)   => set({ activeProjectId: id }),
+      setViewMode:       (mode) => set({ viewMode: mode }),
+      setRoadmapMode:    (mode) => set({ roadmapMode: mode }),
+      toggleTheme:       ()     => set({ theme: get().theme === 'dark' ? 'light' : 'dark' }),
+      setSearchQuery:    (q)    => set({ searchQuery: q }),
+      setFilterPriority: (p)    => set({ filterPriority: p }),
+      setFilterTag:      (t)    => set({ filterTag: t }),
     }),
     { name: 'mydaypal-storage' }
   )

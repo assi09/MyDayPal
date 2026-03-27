@@ -1,44 +1,47 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   X, Plus, Trash2, Check, Calendar,
-  Tag, AlignLeft, CheckSquare
+  Tag, AlignLeft, CheckSquare, Zap,
 } from 'lucide-react';
-import { Task, Priority, Status } from '../types';
+import { Task, Priority, Status, Complexity } from '../types';
 import { useStore } from '../store';
 
 const PRIORITIES: { value: Priority; label: string; color: string }[] = [
-  { value: 'high', label: 'High', color: 'var(--priority-high)' },
-  { value: 'medium', label: 'Medium', color: 'var(--priority-medium)' },
-  { value: 'low', label: 'Low', color: 'var(--priority-low)' },
+  { value: 'critical', label: 'Critical', color: '#DC2626' },
+  { value: 'high',     label: 'High',     color: '#F97316' },
+  { value: 'medium',   label: 'Medium',   color: '#F59E0B' },
+  { value: 'low',      label: 'Low',      color: '#22C55E' },
 ];
 
 const STATUSES: { value: Status; label: string }[] = [
-  { value: 'todo', label: 'To Do' },
-  { value: 'ongoing', label: 'Ongoing' },
-  { value: 'done', label: 'Done' },
+  { value: 'todo',    label: 'To Do' },
+  { value: 'ongoing', label: 'In Progress' },
+  { value: 'done',    label: 'Done' },
 ];
 
 interface Props {
   task: Task | null;
   onClose: () => void;
   defaultStatus?: Status;
+  defaultDueDate?: string;
 }
 
-export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Props) {
+export default function TaskModal({ task, onClose, defaultStatus = 'todo', defaultDueDate = '' }: Props) {
   const { projects, tags, addTask, updateTask, addTag, addSubtask, toggleSubtask, deleteSubtask } = useStore();
 
   const isNew = !task;
 
-  const [title, setTitle] = useState(task?.title ?? '');
-  const [description, setDescription] = useState(task?.description ?? '');
-  const [priority, setPriority] = useState<Priority>(task?.priority ?? 'medium');
-  const [status, setStatus] = useState<Status>(task?.status ?? defaultStatus);
-  const [projectId, setProjectId] = useState<string | null>(task?.projectId ?? null);
+  const [title, setTitle]               = useState(task?.title ?? '');
+  const [description, setDescription]   = useState(task?.description ?? '');
+  const [priority, setPriority]         = useState<Priority>(task?.priority ?? 'medium');
+  const [status, setStatus]             = useState<Status>(task?.status ?? defaultStatus);
+  const [projectId, setProjectId]       = useState<string | null>(task?.projectId ?? null);
   const [selectedTags, setSelectedTags] = useState<string[]>(task?.tags ?? []);
-  const [dueDate, setDueDate] = useState<string>(task?.dueDate ?? '');
-  const [newSubtask, setNewSubtask] = useState('');
-  const [newTagName, setNewTagName] = useState('');
-  const [addingTag, setAddingTag] = useState(false);
+  const [dueDate, setDueDate]           = useState<string>(task?.dueDate ?? defaultDueDate);
+  const [complexity, setComplexity]     = useState<Complexity>(task?.complexity ?? 3);
+  const [newSubtask, setNewSubtask]     = useState('');
+  const [newTagName, setNewTagName]     = useState('');
+  const [addingTag, setAddingTag]       = useState(false);
 
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -46,25 +49,23 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Pro
     setTimeout(() => titleRef.current?.focus(), 50);
   }, []);
 
-  // Sync live updates for existing task
   useEffect(() => {
     if (!isNew && task) {
-      updateTask(task.id, { title, description, priority, status, projectId, tags: selectedTags, dueDate: dueDate || null });
+      updateTask(task.id, {
+        title, description, priority, status,
+        projectId, tags: selectedTags,
+        dueDate: dueDate || null, complexity,
+      });
     }
-  }, [title, description, priority, status, projectId, selectedTags, dueDate]);
+  }, [title, description, priority, status, projectId, selectedTags, dueDate, complexity]);
 
   function handleSave() {
     if (!title.trim()) return;
     if (isNew) {
       addTask({
-        title: title.trim(),
-        description,
-        priority,
-        status,
-        projectId,
-        tags: selectedTags,
-        subtasks: [],
-        dueDate: dueDate || null,
+        title: title.trim(), description, priority, status,
+        projectId, tags: selectedTags, subtasks: [],
+        dueDate: dueDate || null, complexity,
       });
     }
     onClose();
@@ -78,7 +79,7 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Pro
 
   function handleAddTag() {
     if (!newTagName.trim()) return;
-    const colors = ['#818cf8', '#34d399', '#f87171', '#fbbf24', '#60a5fa', '#f472b6'];
+    const colors = ['#6366F1', '#22C55E', '#EF4444', '#F59E0B', '#3B82F6', '#EC4899'];
     const color = colors[Math.floor(Math.random() * colors.length)];
     const tag = addTag(newTagName.trim(), color);
     setSelectedTags(prev => [...prev, tag.id]);
@@ -91,12 +92,14 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Pro
   }
 
   const currentTask = useStore(s => s.tasks.find(t => t.id === task?.id));
+  const activePriority = PRIORITIES.find(p => p.value === priority)!;
 
   return (
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 100,
-        background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+        background: 'rgba(0,0,0,0.50)',
+        backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 24,
       }}
@@ -107,17 +110,17 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Pro
         style={{
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border-strong)',
-          borderRadius: 18,
-          width: '100%', maxWidth: 580,
+          borderRadius: 'var(--r-xl)',
+          width: '100%', maxWidth: 560,
           maxHeight: '88vh',
           display: 'flex', flexDirection: 'column',
-          boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
+          boxShadow: 'var(--shadow-modal)',
           overflow: 'hidden',
         }}
       >
-        {/* Header */}
+        {/* ── Modal header ── */}
         <div style={{
-          padding: '20px 24px 16px',
+          padding: '20px 22px 16px',
           borderBottom: '1px solid var(--border)',
           display: 'flex', alignItems: 'flex-start', gap: 12,
         }}>
@@ -129,55 +132,69 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Pro
             placeholder="Task title…"
             style={{
               flex: 1, background: 'none', border: 'none',
-              fontSize: 18, fontWeight: 600, color: 'var(--text-primary)',
-              lineHeight: 1.3,
+              fontSize: 18, fontWeight: 700, color: 'var(--text-primary)',
+              letterSpacing: '-0.4px', lineHeight: 1.3,
+              fontFamily: 'inherit',
             }}
           />
           <button
             onClick={onClose}
+            className="btn-press"
             style={{
-              background: 'var(--bg-hover)', border: 'none', borderRadius: 8,
-              color: 'var(--text-secondary)', display: 'flex', padding: 6,
+              background: 'var(--bg-hover)', border: 'none',
+              borderRadius: 'var(--r-sm)',
+              color: 'var(--text-muted)', display: 'flex', padding: 7,
               cursor: 'pointer', flexShrink: 0,
+              transition: 'background var(--t-base), color var(--t-base)',
             }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
           >
-            <X size={16} />
+            <X size={15} strokeWidth={2} />
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-          {/* Metadata row */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+        {/* ── Body ── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>
+          {/* ── Metadata pills ── */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
             {/* Status */}
-            <MetaSelect
+            <MetaChip
               value={status}
               onChange={v => setStatus(v as Status)}
               options={STATUSES.map(s => ({ value: s.value, label: s.label }))}
             />
 
             {/* Priority */}
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <select
                 value={priority}
                 onChange={e => setPriority(e.target.value as Priority)}
                 style={{
-                  padding: '6px 12px', borderRadius: 8,
-                  border: `1px solid ${PRIORITIES.find(p => p.value === priority)?.color}44`,
-                  background: `${PRIORITIES.find(p => p.value === priority)?.color}18`,
-                  color: PRIORITIES.find(p => p.value === priority)?.color,
-                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                  appearance: 'none', paddingRight: 24,
+                  appearance: 'none',
+                  padding: '5px 24px 5px 10px',
+                  borderRadius: 'var(--r-full)',
+                  border: `1px solid ${activePriority.color}40`,
+                  background: activePriority.color + '14',
+                  color: activePriority.color,
+                  fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'all var(--t-base)',
                 }}
               >
                 {PRIORITIES.map(p => (
                   <option key={p.value} value={p.value}>{p.label} Priority</option>
                 ))}
               </select>
+              <div style={{
+                width: 5, height: 5, borderRadius: '50%',
+                background: activePriority.color,
+                position: 'absolute', right: 10, pointerEvents: 'none',
+              }} />
             </div>
 
             {/* Project */}
-            <MetaSelect
+            <MetaChip
               value={projectId ?? ''}
               onChange={v => setProjectId(v || null)}
               options={[
@@ -187,79 +204,132 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Pro
             />
           </div>
 
-          {/* Description */}
-          <Section icon={<AlignLeft size={14} />} label="Description">
+          {/* ── Description ── */}
+          <FieldSection icon={<AlignLeft size={13} />} label="Description">
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Add a description…"
               rows={3}
+              className="field-focus"
               style={{
                 width: '100%', background: 'var(--bg-tertiary)',
-                border: '1px solid var(--border)', borderRadius: 10,
-                color: 'var(--text-primary)', fontSize: 13, padding: '10px 12px',
-                resize: 'vertical', lineHeight: 1.6,
-                transition: 'border-color var(--transition)',
-              }}
-              onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-              onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-            />
-          </Section>
-
-          {/* Due Date */}
-          <Section icon={<Calendar size={14} />} label="Due Date">
-            <input
-              type="date"
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-              style={{
-                padding: '7px 12px', background: 'var(--bg-tertiary)',
-                border: '1px solid var(--border)', borderRadius: 8,
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--r-sm)',
                 color: 'var(--text-primary)', fontSize: 13,
-                colorScheme: 'dark',
+                padding: '10px 12px', resize: 'vertical',
+                lineHeight: 1.6, fontFamily: 'inherit',
               }}
             />
-            {dueDate && (
-              <button
-                onClick={() => setDueDate('')}
-                style={{
-                  background: 'none', border: 'none', color: 'var(--text-muted)',
-                  fontSize: 12, cursor: 'pointer', marginLeft: 6,
-                }}
-              >
-                Clear
-              </button>
-            )}
-          </Section>
+          </FieldSection>
 
-          {/* Tags */}
-          <Section icon={<Tag size={14} />} label="Tags">
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-              {tags.map(t => (
+          {/* ── Due Date ── */}
+          <FieldSection icon={<Calendar size={13} />} label="Due Date">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                className="field-focus"
+                style={{
+                  padding: '7px 11px',
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--r-sm)',
+                  color: 'var(--text-primary)', fontSize: 13,
+                  fontFamily: 'inherit',
+                  colorScheme: 'light dark',
+                }}
+              />
+              {dueDate && (
                 <button
-                  key={t.id}
-                  onClick={() => toggleTag(t.id)}
+                  onClick={() => setDueDate('')}
                   style={{
-                    padding: '4px 10px', borderRadius: 99, fontSize: 12, fontWeight: 500,
-                    border: `1px solid ${selectedTags.includes(t.id) ? t.color : 'var(--border)'}`,
-                    background: selectedTags.includes(t.id) ? t.color + '22' : 'transparent',
-                    color: selectedTags.includes(t.id) ? t.color : 'var(--text-muted)',
-                    cursor: 'pointer', transition: 'all var(--transition)',
+                    background: 'none', border: 'none',
+                    color: 'var(--text-muted)', fontSize: 12,
+                    cursor: 'pointer', fontFamily: 'inherit',
                   }}
                 >
-                  {t.name}
+                  Clear
                 </button>
-              ))}
+              )}
+            </div>
+          </FieldSection>
+
+          {/* ── Complexity ── */}
+          <FieldSection icon={<Zap size={13} />} label="Complexity">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {([1, 2, 3, 4, 5] as Complexity[]).map(n => {
+                const labels = ['Trivial', 'Simple', 'Moderate', 'Hard', 'Epic'];
+                const active = n <= complexity;
+                return (
+                  <button
+                    key={n}
+                    onClick={() => setComplexity(n)}
+                    title={labels[n - 1]}
+                    className="btn-press"
+                    style={{
+                      width: 28, height: 28,
+                      borderRadius: 'var(--r-sm)',
+                      border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                      background: active ? 'var(--accent-soft)' : 'transparent',
+                      color: active ? 'var(--accent)' : 'var(--text-muted)',
+                      fontSize: 12, fontWeight: 700,
+                      cursor: 'pointer', fontFamily: 'inherit',
+                      transition: 'all var(--t-base)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 6 }}>
+                {['Trivial', 'Simple', 'Moderate', 'Hard', 'Epic'][complexity - 1]}
+              </span>
+            </div>
+          </FieldSection>
+
+          {/* ── Tags ── */}
+          <FieldSection icon={<Tag size={13} />} label="Tags">
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+              {tags.map(t => {
+                const active = selectedTags.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => toggleTag(t.id)}
+                    className="btn-press"
+                    style={{
+                      padding: '4px 10px', borderRadius: 'var(--r-full)',
+                      fontSize: 12, fontWeight: 600,
+                      border: `1px solid ${active ? t.color + '60' : 'var(--border)'}`,
+                      background: active ? t.color + '18' : 'transparent',
+                      color: active ? t.color : 'var(--text-muted)',
+                      cursor: 'pointer', transition: 'all var(--t-base)',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    {t.name}
+                  </button>
+                );
+              })}
               {addingTag ? (
                 <input
                   autoFocus
                   value={newTagName}
                   onChange={e => setNewTagName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddTag(); if (e.key === 'Escape') setAddingTag(false); }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleAddTag();
+                    if (e.key === 'Escape') setAddingTag(false);
+                  }}
                   placeholder="Tag name…"
+                  className="field-focus"
                   style={{
-                    padding: '4px 8px', borderRadius: 8, fontSize: 12,
-                    border: '1px solid var(--accent)', background: 'var(--bg-tertiary)',
+                    padding: '4px 9px', borderRadius: 'var(--r-sm)',
+                    fontSize: 12, fontFamily: 'inherit',
+                    border: '1px solid var(--accent)',
+                    background: 'var(--bg-tertiary)',
                     color: 'var(--text-primary)', width: 90,
                   }}
                 />
@@ -267,114 +337,138 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Pro
                 <button
                   onClick={() => setAddingTag(true)}
                   style={{
-                    padding: '4px 8px', borderRadius: 99, fontSize: 12,
-                    border: '1px dashed var(--border)', background: 'transparent',
+                    padding: '4px 9px', borderRadius: 'var(--r-full)',
+                    fontSize: 12, fontWeight: 500,
+                    border: '1.5px dashed var(--border)',
+                    background: 'transparent',
                     color: 'var(--text-muted)', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: 4,
+                    fontFamily: 'inherit',
+                    transition: 'border-color var(--t-base), color var(--t-base)',
                   }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                 >
-                  <Plus size={11} /> New tag
+                  <Plus size={11} strokeWidth={2.5} /> New tag
                 </button>
               )}
             </div>
-          </Section>
+          </FieldSection>
 
-          {/* Subtasks — only for existing tasks */}
+          {/* ── Subtasks (existing tasks only) ── */}
           {!isNew && currentTask && (
-            <Section icon={<CheckSquare size={14} />} label="Subtasks">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <FieldSection icon={<CheckSquare size={13} />} label="Subtasks">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {currentTask.subtasks.map(s => (
-                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div key={s.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 9,
+                    padding: '6px 4px', borderRadius: 'var(--r-sm)',
+                  }}>
                     <button
                       onClick={() => toggleSubtask(task!.id, s.id)}
+                      className="btn-press"
                       style={{
-                        width: 18, height: 18, borderRadius: 5, border: `2px solid ${s.completed ? 'var(--accent)' : 'var(--border-strong)'}`,
+                        width: 17, height: 17, borderRadius: 5, flexShrink: 0,
+                        border: `2px solid ${s.completed ? 'var(--accent)' : 'var(--border-strong)'}`,
                         background: s.completed ? 'var(--accent)' : 'transparent',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', flexShrink: 0, transition: 'all var(--transition)',
+                        cursor: 'pointer', transition: 'all var(--t-base)',
                       }}
                     >
-                      {s.completed && <Check size={10} color="#fff" strokeWidth={3} />}
+                      {s.completed && <Check size={9} color="#fff" strokeWidth={3} />}
                     </button>
                     <span style={{
                       flex: 1, fontSize: 13, color: 'var(--text-primary)',
                       textDecoration: s.completed ? 'line-through' : 'none',
-                      opacity: s.completed ? 0.5 : 1,
+                      opacity: s.completed ? 0.45 : 1,
                     }}>
                       {s.title}
                     </span>
                     <button
                       onClick={() => deleteSubtask(task!.id, s.id)}
                       style={{
-                        background: 'none', border: 'none', color: 'var(--text-muted)',
-                        cursor: 'pointer', display: 'flex', padding: 2, opacity: 0.5,
+                        background: 'none', border: 'none',
+                        color: 'var(--text-muted)', cursor: 'pointer',
+                        display: 'flex', padding: 2, opacity: 0.4,
+                        transition: 'opacity var(--t-base)',
                       }}
                       onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                      onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}
+                      onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={12} strokeWidth={1.8} />
                     </button>
                   </div>
                 ))}
 
-                {/* Add subtask */}
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+                {/* Add subtask input */}
+                <div style={{ display: 'flex', gap: 7, alignItems: 'center', marginTop: 4 }}>
                   <input
                     value={newSubtask}
                     onChange={e => setNewSubtask(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleAddSubtask(); }}
                     placeholder="Add subtask…"
+                    className="field-focus"
                     style={{
-                      flex: 1, padding: '6px 10px', background: 'var(--bg-tertiary)',
-                      border: '1px solid var(--border)', borderRadius: 8,
+                      flex: 1, padding: '6px 10px',
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--r-sm)',
                       color: 'var(--text-primary)', fontSize: 13,
+                      fontFamily: 'inherit',
                     }}
-                    onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
                   />
                   <button
                     onClick={handleAddSubtask}
+                    className="btn-press"
                     style={{
                       background: 'var(--accent-soft)', border: 'none',
-                      color: 'var(--accent)', borderRadius: 8, padding: '6px 10px',
-                      cursor: 'pointer', display: 'flex',
+                      color: 'var(--accent)', borderRadius: 'var(--r-sm)',
+                      padding: '6px 9px', cursor: 'pointer', display: 'flex',
                     }}
                   >
-                    <Plus size={15} />
+                    <Plus size={15} strokeWidth={2} />
                   </button>
                 </div>
               </div>
-            </Section>
+            </FieldSection>
           )}
         </div>
 
-        {/* Footer */}
+        {/* ── Footer (new task only) ── */}
         {isNew && (
           <div style={{
-            padding: '16px 24px',
+            padding: '14px 22px',
             borderTop: '1px solid var(--border)',
-            display: 'flex', gap: 10, justifyContent: 'flex-end',
+            display: 'flex', gap: 8, justifyContent: 'flex-end',
           }}>
             <button
               onClick={onClose}
+              className="btn-press"
               style={{
-                padding: '9px 18px', borderRadius: 9, border: '1px solid var(--border)',
-                background: 'transparent', color: 'var(--text-secondary)', fontSize: 13,
-                fontWeight: 500, cursor: 'pointer',
+                padding: '9px 18px', borderRadius: 'var(--r-md)',
+                border: '1px solid var(--border)',
+                background: 'transparent', color: 'var(--text-secondary)',
+                fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                fontFamily: 'inherit', transition: 'background var(--t-base)',
               }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={!title.trim()}
+              className="btn-press"
               style={{
-                padding: '9px 22px', borderRadius: 9, border: 'none',
+                padding: '9px 22px', borderRadius: 'var(--r-md)', border: 'none',
                 background: title.trim() ? 'var(--accent)' : 'var(--bg-tertiary)',
                 color: title.trim() ? '#fff' : 'var(--text-muted)',
-                fontSize: 13, fontWeight: 600, cursor: title.trim() ? 'pointer' : 'not-allowed',
-                boxShadow: title.trim() ? '0 4px 12px var(--accent-glow)' : 'none',
-                transition: 'all var(--transition)',
+                fontSize: 13, fontWeight: 700, letterSpacing: '-0.1px',
+                cursor: title.trim() ? 'pointer' : 'not-allowed',
+                boxShadow: title.trim() ? '0 4px 14px var(--accent-glow)' : 'none',
+                transition: 'all var(--t-base)',
+                fontFamily: 'inherit',
               }}
             >
               Add Task
@@ -386,36 +480,58 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo' }: Pro
   );
 }
 
-function Section({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+function FieldSection({ icon, label, children }: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, color: 'var(--text-muted)' }}>
+    <div style={{ marginBottom: 18 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        marginBottom: 8, color: 'var(--text-muted)',
+      }}>
         {icon}
-        <span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
+        <span style={{
+          fontSize: 10.5, fontWeight: 700,
+          textTransform: 'uppercase', letterSpacing: '0.08em',
+        }}>
+          {label}
+        </span>
       </div>
       {children}
     </div>
   );
 }
 
-function MetaSelect({ value, onChange, options }: {
+function MetaChip({ value, onChange, options }: {
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
 }) {
   return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      style={{
-        padding: '6px 12px', borderRadius: 8,
-        border: '1px solid var(--border)',
-        background: 'var(--bg-tertiary)', color: 'var(--text-secondary)',
-        fontSize: 12, fontWeight: 500, cursor: 'pointer',
-        appearance: 'none', paddingRight: 24,
-      }}
-    >
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          appearance: 'none',
+          padding: '5px 22px 5px 10px',
+          borderRadius: 'var(--r-full)',
+          border: '1px solid var(--border)',
+          background: 'var(--bg-tertiary)',
+          color: 'var(--text-secondary)',
+          fontSize: 12, fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}
+      >
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <div style={{
+        position: 'absolute', right: 8, pointerEvents: 'none',
+        width: 4, height: 4, borderRadius: '50%',
+        background: 'var(--text-muted)',
+      }} />
+    </div>
   );
 }

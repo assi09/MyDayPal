@@ -1,7 +1,8 @@
-export type Priority = 'low' | 'medium' | 'high';
-export type Status = 'todo' | 'ongoing' | 'done';
-export type ViewMode = 'kanban' | 'list';
-export type Theme = 'dark' | 'light';
+export type Priority   = 'low' | 'medium' | 'high' | 'critical';
+export type Status     = 'todo' | 'ongoing' | 'done';
+export type ViewMode   = 'kanban' | 'list' | 'calendar' | 'roadmap';
+export type Theme      = 'dark' | 'light';
+export type Complexity = 1 | 2 | 3 | 4 | 5;
 
 export interface SubTask {
   id: string;
@@ -21,10 +22,11 @@ export interface Task {
   description: string;
   status: Status;
   priority: Priority;
+  complexity?: Complexity;  // 1=trivial → 5=epic; defaults to 3
   projectId: string | null;
-  tags: string[]; // tag ids
+  tags: string[];           // tag ids
   subtasks: SubTask[];
-  dueDate: string | null; // ISO string
+  dueDate: string | null;   // ISO date string yyyy-MM-dd
   createdAt: string;
   updatedAt: string;
   order: number;
