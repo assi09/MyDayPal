@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { Search, LayoutGrid, List, CalendarDays, Map, X, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { Priority } from '../types';
@@ -29,8 +29,23 @@ export default function Header() {
   } = useStore();
 
   const searchRef = useRef<HTMLInputElement>(null);
+  const controlRef = useRef<HTMLDivElement>(null);
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const activeIdx = MODES.findIndex(m => m.id === viewMode);
   const hasFilters = searchQuery || filterPriority !== 'all' || filterTag !== 'all';
+
+  const [pillStyle, setPillStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+
+  const measurePill = useCallback(() => {
+    const btn = btnRefs.current[activeIdx];
+    const container = controlRef.current;
+    if (!btn || !container) return;
+    const cRect = container.getBoundingClientRect();
+    const bRect = btn.getBoundingClientRect();
+    setPillStyle({ left: bRect.left - cRect.left, width: bRect.width });
+  }, [activeIdx]);
+
+  useEffect(() => { measurePill(); }, [measurePill]);
 
   const pageTitle = activeProjectId
     ? (projects.find(p => p.id === activeProjectId)?.name ?? 'Project')
@@ -78,18 +93,19 @@ export default function Header() {
         </div>
 
         {/* ── Segmented view control ── */}
-        <div className="seg-control" style={{ alignSelf: 'center' }}>
-          {/* Sliding pill */}
+        <div ref={controlRef} className="seg-control" style={{ alignSelf: 'center' }}>
+          {/* Sliding pill — positioned via measured refs */}
           <div
             className="seg-pill"
             style={{
-              left: `calc(3px + ${activeIdx} * (100% - 6px) / 4)`,
-              width: 'calc((100% - 6px) / 4)',
+              left: pillStyle.left,
+              width: pillStyle.width,
             }}
           />
-          {MODES.map(m => (
+          {MODES.map((m, i) => (
             <button
               key={m.id}
+              ref={el => { btnRefs.current[i] = el; }}
               className={`seg-btn btn-press ${viewMode === m.id ? 'active' : ''}`}
               onClick={() => setViewMode(m.id)}
             >
