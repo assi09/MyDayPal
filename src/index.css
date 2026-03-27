@@ -6,6 +6,16 @@
   padding: 0;
 }
 
+/* Thin scrollbars (Windows/Linux) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong, #888) transparent;
+}
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong, #888); border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--text-muted, #666); }
+
 /* ─── Design Tokens ─────────────────────────────── */
 :root {
   /* Radius scale */
