@@ -1,6 +1,6 @@
 export type Priority   = 'low' | 'medium' | 'high' | 'critical';
 export type Status     = 'todo' | 'ongoing' | 'done';
-export type ViewMode   = 'kanban' | 'list' | 'calendar' | 'roadmap';
+export type ViewMode   = 'kanban' | 'list' | 'calendar' | 'roadmap' | 'settings';
 export type Theme      = 'dark' | 'light';
 export type Complexity = 1 | 2 | 3 | 4 | 5;
 
@@ -47,4 +47,30 @@ export interface Project {
   color: string;
   createdAt: string;
   archived?: boolean;
+}
+
+export interface AppSettings {
+  // Auto-archive
+  autoArchiveTasks: 'never' | '7days' | '30days';
+  autoArchiveProjects: 'never' | '7days' | '30days';
+  // Overdue escalation
+  overdueEscalationEnabled: boolean;
+  overdueEscalationDays: number;
+  // Stale task detection
+  staleTaskEnabled: boolean;
+  staleTaskDays: number;
+  // Due date buffer (early warning)
+  dueDateBufferEnabled: boolean;
+  dueDateBufferDays: number;
+  // Focus mode
+  focusModeEnabled: boolean;
+  // Daily task cap
+  dailyTaskCapEnabled: boolean;
+  dailyTaskCap: number;
+  // Complexity balance
+  complexityBalanceEnabled: boolean;
+  complexityBalanceMax: number;
+  // XP bonuses
+  streakBonusEnabled: boolean;
+  earlyBirdBonusEnabled: boolean;
 }

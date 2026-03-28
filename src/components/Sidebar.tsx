@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sun, Moon, Layers, Plus, Trash2, LayoutGrid, List, CalendarDays, Map, Archive, RotateCcw } from 'lucide-react';
+import { Sun, Moon, Layers, Plus, Trash2, LayoutGrid, List, CalendarDays, Map, Archive, RotateCcw, Settings as SettingsIcon } from 'lucide-react';
 import { useStore } from '../store';
 import iconMark from '../assets/icon-mark.svg';
 
@@ -97,11 +97,18 @@ export default function Sidebar() {
         <SectionLabel>Views</SectionLabel>
 
         <button
-          className={`sidebar-item btn-press ${activeProjectId === null ? 'active' : ''}`}
-          onClick={() => setActiveProject(null)}
+          className={`sidebar-item btn-press ${activeProjectId === null && viewMode !== 'settings' ? 'active' : ''}`}
+          onClick={() => { setActiveProject(null); if (viewMode === 'settings') setViewMode('kanban'); }}
         >
           <Layers size={15} strokeWidth={1.8} />
           All Tasks
+        </button>
+        <button
+          className={`sidebar-item btn-press ${viewMode === 'settings' ? 'active' : ''}`}
+          onClick={() => setViewMode('settings')}
+        >
+          <SettingsIcon size={15} strokeWidth={1.8} />
+          Settings
         </button>
       </nav>
 
@@ -237,7 +244,7 @@ export default function Sidebar() {
                 </span>
               </button>
 
-              {/* Archive button (hover only) */}
+              {/* Archive button (slightly visible, fully visible on hover) */}
               <button
                 onClick={e => { e.stopPropagation(); archiveProject(p.id); }}
                 style={{
@@ -248,7 +255,7 @@ export default function Sidebar() {
                   color: 'var(--text-muted)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer',
-                  opacity: hoveredProject === p.id ? 1 : 0,
+                  opacity: hoveredProject === p.id ? 1 : 0.3,
                   transition: 'opacity var(--t-base), color var(--t-fast)',
                 }}
                 onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}

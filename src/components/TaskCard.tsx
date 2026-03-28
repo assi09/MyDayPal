@@ -36,7 +36,7 @@ interface Props {
 }
 
 export default function TaskCard({ task, onOpen, overlay }: Props) {
-  const { tags, deleteTask } = useStore();
+  const { tags, deleteTask, settings } = useStore();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   const [hovered, setHovered] = useState(false);
@@ -54,8 +54,17 @@ export default function TaskCard({ task, onOpen, overlay }: Props) {
   const due = task.dueDate ? formatDue(task.dueDate) : null;
   const isDone = task.status === 'done';
 
+  const daysSinceUpdate = Math.floor((Date.now() - new Date(task.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
+  const isStale = settings.staleTaskEnabled && task.status !== 'done' && daysSinceUpdate >= settings.staleTaskDays;
+
   return (
-    <div ref={setNodeRef} style={style} className={overlay ? 'drag-overlay' : ''}>
+    <div
+      ref={setNodeRef}
+      style={{ ...style, cursor: isDragging ? 'grabbing' : 'grab' }}
+      className={overlay ? 'drag-overlay' : ''}
+      {...attributes}
+      {...listeners}
+    >
       <div
         className="task-card"
         onMouseEnter={() => setHovered(true)}
@@ -64,7 +73,7 @@ export default function TaskCard({ task, onOpen, overlay }: Props) {
           background: 'var(--bg-card)',
           borderRadius: 'var(--r-md)',
           padding: '12px 13px 11px',
-          cursor: 'pointer',
+          cursor: 'inherit',
           // Left accent stripe via inset box-shadow + layered outer shadow
           boxShadow: hovered
             ? `inset 3px 0 0 0 ${hex}, var(--shadow-md)`
@@ -76,7 +85,7 @@ export default function TaskCard({ task, onOpen, overlay }: Props) {
           position: 'relative',
           opacity: isDone ? 0.65 : 1,
         }}
-        onClick={() => onOpen(task)}
+        onClick={() => { if (!isDragging) onOpen(task); }}
       >
         {/* ── Top row: actions ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -97,22 +106,14 @@ export default function TaskCard({ task, onOpen, overlay }: Props) {
 
           <div style={{ flex: 1 }} />
 
-          {/* Drag handle */}
-          <div
-            {...attributes}
-            {...listeners}
-            onClick={e => e.stopPropagation()}
-            style={{
-              color: 'var(--text-muted)',
-              cursor: 'grab',
-              display: 'flex',
-              alignItems: 'center',
-              opacity: hovered ? 1 : 0,
-              transition: 'opacity var(--t-base)',
-              padding: '1px 2px',
-              borderRadius: 4,
-            }}
-          >
+          {/* Drag hint icon */}
+          <div style={{
+            color: 'var(--text-muted)',
+            display: 'flex', alignItems: 'center',
+            opacity: hovered ? 0.5 : 0,
+            transition: 'opacity var(--t-base)',
+            padding: '1px 2px',
+          }}>
             <GripVertical size={13} strokeWidth={2} />
           </div>
 
@@ -136,16 +137,36 @@ export default function TaskCard({ task, onOpen, overlay }: Props) {
         </div>
 
         {/* ── Title ── */}
-        <p style={{
-          fontSize: 13.5,
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          lineHeight: 1.4,
-          letterSpacing: '-0.15px',
-          textDecoration: isDone ? 'line-through' : 'none',
-        }}>
-          {task.title}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          <p style={{
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            lineHeight: 1.4,
+            letterSpacing: '-0.15px',
+            textDecoration: isDone ? 'line-through' : 'none',
+            margin: 0,
+            flex: 1,
+          }}>
+            {task.title}
+          </p>
+          {isStale && (
+            <span style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              padding: '2px 6px',
+              borderRadius: 'var(--r-xs)',
+              background: '#F59E0B22',
+              color: '#F59E0B',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              flexShrink: 0,
+              marginTop: 1,
+            }}>
+              Stale
+            </span>
+          )}
+        </div>
 
         {/* ── Description preview ── */}
         {task.description && (

@@ -4,7 +4,10 @@ import {
   subDays, subWeeks, subMonths,
   format, parseISO, isSameDay, differenceInCalendarDays,
 } from 'date-fns';
-import { TrendingUp, TrendingDown, Minus, Flame, Trophy, Zap, Calendar, BarChart3, Edit2, Check } from 'lucide-react';
+import {
+  TrendingUp, TrendingDown, Minus, Flame, Trophy, Zap, Calendar, BarChart3, Edit2, Check,
+  Target, Award, Crown, Star, Gem, Medal, Lock,
+} from 'lucide-react';
 import { Task } from '../types';
 import { taskXP } from '../lib/roadmapEngine';
 import { useStore } from '../store';
@@ -12,20 +15,36 @@ import { useStore } from '../store';
 // ─── Badge definitions ─────────────────────────────────────────────────────────
 
 const ALL_BADGES = [
-  { id: 'first_task',    label: 'First Steps',      desc: 'Complete your first task',   icon: '🎯', req: '1 task done' },
-  { id: 'ten_tasks',     label: 'Getting Rolling',  desc: 'Complete 10 tasks',           icon: '🚀', req: '10 tasks done' },
-  { id: 'fifty_tasks',   label: 'Productivity Pro', desc: 'Complete 50 tasks',           icon: '💪', req: '50 tasks done' },
-  { id: 'hundred_tasks', label: 'Century Club',     desc: 'Complete 100 tasks',          icon: '💯', req: '100 tasks done' },
-  { id: 'streak_3',      label: 'On a Roll',        desc: '3-day completion streak',     icon: '🔥', req: '3-day streak' },
-  { id: 'streak_7',      label: 'Week Warrior',     desc: '7-day completion streak',     icon: '⚡', req: '7-day streak' },
-  { id: 'streak_30',     label: 'Unstoppable',      desc: '30-day completion streak',    icon: '👑', req: '30-day streak' },
-  { id: 'xp_100',        label: 'XP Rookie',        desc: 'Earn 100 XP total',           icon: '⭐', req: '100 total XP' },
-  { id: 'xp_500',        label: 'XP Climber',       desc: 'Earn 500 XP total',           icon: '🌟', req: '500 total XP' },
-  { id: 'xp_2000',       label: 'XP Elite',         desc: 'Earn 2,000 XP total',         icon: '💎', req: '2,000 total XP' },
-  { id: 'xp_10000',      label: 'XP Legend',        desc: 'Earn 10,000 XP total',        icon: '🏆', req: '10,000 total XP' },
-  { id: 'speed_demon',   label: 'Speed Demon',      desc: 'Complete 5 tasks in one day', icon: '⚡', req: '5 tasks in a day' },
-  { id: 'overachiever',  label: 'Overachiever',     desc: 'Beat your weekly XP goal',    icon: '🎖️', req: 'Beat weekly goal' },
+  { id: 'first_task',    label: 'First Steps',      desc: 'Complete your first task',   req: '1 task done' },
+  { id: 'ten_tasks',     label: 'Getting Rolling',  desc: 'Complete 10 tasks',           req: '10 tasks done' },
+  { id: 'fifty_tasks',   label: 'Productivity Pro', desc: 'Complete 50 tasks',           req: '50 tasks done' },
+  { id: 'hundred_tasks', label: 'Century Club',     desc: 'Complete 100 tasks',          req: '100 tasks done' },
+  { id: 'streak_3',      label: 'On a Roll',        desc: '3-day completion streak',     req: '3-day streak' },
+  { id: 'streak_7',      label: 'Week Warrior',     desc: '7-day completion streak',     req: '7-day streak' },
+  { id: 'streak_30',     label: 'Unstoppable',      desc: '30-day completion streak',    req: '30-day streak' },
+  { id: 'xp_100',        label: 'XP Rookie',        desc: 'Earn 100 XP total',           req: '100 total XP' },
+  { id: 'xp_500',        label: 'XP Climber',       desc: 'Earn 500 XP total',           req: '500 total XP' },
+  { id: 'xp_2000',       label: 'XP Elite',         desc: 'Earn 2,000 XP total',         req: '2,000 total XP' },
+  { id: 'xp_10000',      label: 'XP Legend',        desc: 'Earn 10,000 XP total',        req: '10,000 total XP' },
+  { id: 'speed_demon',   label: 'Speed Demon',      desc: 'Complete 5 tasks in one day', req: '5 tasks in a day' },
+  { id: 'overachiever',  label: 'Overachiever',     desc: 'Beat your weekly XP goal',    req: 'Beat weekly goal' },
 ];
+
+const BADGE_ICONS: Record<string, React.ReactNode> = {
+  first_task:    <Target size={18} strokeWidth={2} />,
+  ten_tasks:     <TrendingUp size={18} strokeWidth={2} />,
+  fifty_tasks:   <Zap size={18} strokeWidth={2} />,
+  hundred_tasks: <Award size={18} strokeWidth={2} />,
+  streak_3:      <Flame size={18} strokeWidth={2} />,
+  streak_7:      <Flame size={18} strokeWidth={2.5} />,
+  streak_30:     <Crown size={18} strokeWidth={2} />,
+  xp_100:        <Star size={18} strokeWidth={2} />,
+  xp_500:        <Star size={18} strokeWidth={2.5} />,
+  xp_2000:       <Gem size={18} strokeWidth={2} />,
+  xp_10000:      <Trophy size={18} strokeWidth={2} />,
+  speed_demon:   <Zap size={18} strokeWidth={2.5} />,
+  overachiever:  <Medal size={18} strokeWidth={2} />,
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,14 +53,19 @@ interface StatCard { label: string; value: number; sub: string; icon: React.Reac
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function doneTasks(tasks: Task[]): { task: Task; xp: number; doneAt: Date }[] {
+function doneTasks(tasks: Task[], earlyBirdEnabled: boolean): { task: Task; xp: number; doneAt: Date }[] {
   return tasks
     .filter(t => t.status === 'done')
-    .map(t => ({
-      task: t,
-      xp: taskXP(t),
-      doneAt: parseISO(t.updatedAt),
-    }))
+    .map(t => {
+      const completedDate = t.updatedAt.slice(0, 10);
+      const hasEarlyBonus = earlyBirdEnabled && t.dueDate !== null && completedDate < t.dueDate;
+      const xp = Math.round(taskXP(t) * (hasEarlyBonus ? 1.2 : 1));
+      return {
+        task: t,
+        xp,
+        doneAt: parseISO(t.updatedAt),
+      };
+    })
     .sort((a, b) => a.doneAt.getTime() - b.doneAt.getTime());
 }
 
@@ -120,12 +144,12 @@ function bucketByMonth(items: { xp: number; doneAt: Date }[], months: number): T
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function XPDashboard({ tasks }: { tasks: Task[] }) {
-  const { accentColor, weeklyXPGoal, setWeeklyXPGoal, earnedBadges, awardBadge } = useStore();
+  const { accentColor, weeklyXPGoal, setWeeklyXPGoal, earnedBadges, awardBadge, settings } = useStore();
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState(String(weeklyXPGoal));
 
   const data = useMemo(() => {
-    const done = doneTasks(tasks);
+    const done = doneTasks(tasks, settings.earlyBirdBonusEnabled);
     const now = new Date();
     const today = startOfDay(now);
     const thisWeekStart = startOfWeek(now);
@@ -168,6 +192,9 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
     // Max tasks in a day (for speed demon badge)
     const maxTasksInDay = Math.max(0, ...heatmapDays.map(d => d.tasks));
 
+    // Streak bonus: if streak >= 7 and enabled, show +50% indicator
+    const streakBonus = settings.streakBonusEnabled && streak >= 7;
+
     return {
       totalXP, todayXP, thisWeekXP, thisMonthXP,
       avgPerDay, avgPerWeek, streak,
@@ -176,8 +203,9 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
       totalDone: done.length,
       heatmapDays,
       maxTasksInDay,
+      streakBonus,
     };
-  }, [tasks]);
+  }, [tasks, settings.earlyBirdBonusEnabled, settings.streakBonusEnabled]);
 
   // ── Badge auto-award logic ──────────────────────────────────────────────────
   useEffect(() => {
@@ -218,7 +246,8 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
       icon: <Zap size={18} strokeWidth={2} />, color: '#F59E0B',
     },
     {
-      label: 'This Week', value: data.thisWeekXP, sub: 'XP this week',
+      label: 'This Week', value: data.thisWeekXP,
+      sub: data.streakBonus ? 'XP this week · +50% streak bonus' : 'XP this week',
       icon: <BarChart3 size={18} strokeWidth={2} />, color: '#3B82F6',
       trend: data.weekTrend,
     },
@@ -394,7 +423,7 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
         ))}
       </div>
 
-      {/* ── Activity Heatmap ── */}
+      {/* ── Activity Heatmap (full width) ── */}
       <CalendarHeatmap days={data.heatmapDays} accentColor={accentColor} />
 
       {/* ── Charts ── */}
@@ -421,33 +450,23 @@ function CalendarHeatmap({
   accentColor: string;
 }) {
   // Build 15 weeks × 7 days grid (105 days, oldest first)
-  // days[0] is 104 days ago, days[104] is today
-  // We want columns = weeks (15), rows = days of week (7, Sun=0)
-  // Pad the start so first day falls on correct weekday
   const firstDay = days[0]?.date;
   const firstDow = firstDay ? firstDay.getDay() : 0; // 0=Sun
 
-  // We'll build 15 columns of 7 cells each = 105 cells total
-  // But we skip the first `firstDow` cells (they're before our data)
-  // Actually: 105 days + padding at start
   const totalCells = 15 * 7;
-  const paddingCells = firstDow; // days before data in first week column
+  const paddingCells = firstDow;
 
-  // Build array of cells: null = padding, else day data
   type Cell = { date: Date; xp: number; tasks: number } | null;
   const cells: Cell[] = [];
   for (let i = 0; i < paddingCells; i++) cells.push(null);
   for (const d of days) cells.push(d);
-  // Fill remaining to complete 15 weeks
   while (cells.length < totalCells) cells.push(null);
 
-  // Group into weeks (columns of 7)
   const weeks: Cell[][] = [];
   for (let w = 0; w < 15; w++) {
     weeks.push(cells.slice(w * 7, w * 7 + 7));
   }
 
-  // Month labels: find which week each month starts
   const monthLabels: { week: number; label: string }[] = [];
   weeks.forEach((week, wi) => {
     week.forEach((cell) => {
@@ -465,22 +484,30 @@ function CalendarHeatmap({
     return accentColor;
   }
 
-  const CELL = 11;
-  const GAP = 2;
+  const CELL = 13;
+  const GAP = 3;
 
   return (
     <div style={{
-      padding: '20px', borderRadius: 'var(--r-lg)',
       background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-      boxShadow: 'var(--shadow-xs)',
+      borderRadius: 'var(--r-lg)', padding: '20px 24px', width: '100%',
+      boxSizing: 'border-box',
     }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
-        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-          Activity
-        </span>
-        <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--text-muted)' }}>
-          Last 15 weeks
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Activity</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>Last 15 weeks</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-muted)' }}>
+          <span>Less</span>
+          {(['var(--bg-hover)', accentColor + '40', accentColor + '80', accentColor + 'BB', accentColor] as string[]).map((bg, i) => (
+            <div key={i} style={{
+              width: CELL, height: CELL, borderRadius: 3,
+              background: bg, flexShrink: 0,
+            }} />
+          ))}
+          <span>More</span>
+        </div>
       </div>
 
       <div style={{ overflowX: 'auto' }}>
@@ -488,9 +515,8 @@ function CalendarHeatmap({
           {/* Month labels row */}
           <div style={{
             display: 'flex', gap: GAP,
-            marginBottom: 4, marginLeft: 18,
-            height: 14,
-            position: 'relative',
+            marginBottom: 4, marginLeft: 20,
+            height: 14, position: 'relative',
           }}>
             {weeks.map((_, wi) => {
               const ml = monthLabels.find(m => m.week === wi);
@@ -498,9 +524,7 @@ function CalendarHeatmap({
                 <div key={wi} style={{
                   width: CELL, flexShrink: 0,
                   fontSize: 9, fontWeight: 700, color: 'var(--text-muted)',
-                  letterSpacing: '0.03em',
-                  whiteSpace: 'nowrap',
-                  overflow: 'visible',
+                  letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'visible',
                 }}>
                   {ml ? ml.label : ''}
                 </div>
@@ -511,13 +535,10 @@ function CalendarHeatmap({
           {/* Grid */}
           <div style={{ display: 'flex', gap: GAP }}>
             {/* Day-of-week labels */}
-            <div style={{
-              display: 'flex', flexDirection: 'column', gap: GAP,
-              marginRight: 2,
-            }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: GAP, marginRight: 2 }}>
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
                 <div key={i} style={{
-                  width: 12, height: CELL,
+                  width: 14, height: CELL,
                   fontSize: 8, fontWeight: 700,
                   color: 'var(--text-muted)',
                   display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
@@ -537,9 +558,8 @@ function CalendarHeatmap({
                     title={cell ? `${format(cell.date, 'MMM d, yyyy')}: ${cell.xp} XP, ${cell.tasks} task${cell.tasks !== 1 ? 's' : ''}` : ''}
                     style={{
                       width: CELL, height: CELL,
-                      borderRadius: 2,
+                      borderRadius: 3,
                       background: cell ? cellColor(cell.xp) : 'transparent',
-                      cursor: cell ? 'default' : 'default',
                       transition: 'background var(--t-fast)',
                       flexShrink: 0,
                     }}
@@ -547,23 +567,6 @@ function CalendarHeatmap({
                 ))}
               </div>
             ))}
-          </div>
-
-          {/* Legend */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            marginTop: 10, justifyContent: 'flex-end',
-            fontSize: 9, fontWeight: 600, color: 'var(--text-muted)',
-          }}>
-            <span>Less</span>
-            {[0, '40', '80', 'BB', 'FF'].map((a, i) => (
-              <div key={i} style={{
-                width: CELL, height: CELL, borderRadius: 2,
-                background: i === 0 ? 'var(--bg-hover)' : accentColor + a,
-                flexShrink: 0,
-              }} />
-            ))}
-            <span>More</span>
           </div>
         </div>
       </div>
@@ -613,9 +616,16 @@ function BadgesSection({ earnedBadges }: { earnedBadges: string[] }) {
                 cursor: 'default',
               }}
             >
-              <span style={{ fontSize: 24, lineHeight: 1 }}>
-                {earned ? badge.icon : '🔒'}
-              </span>
+              <div style={{
+                width: 36, height: 36,
+                borderRadius: 'var(--r-sm)',
+                background: earned ? 'var(--accent-soft)' : 'var(--bg-hover)',
+                color: earned ? 'var(--accent)' : 'var(--text-muted)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                {earned ? BADGE_ICONS[badge.id] : <Lock size={16} strokeWidth={2} />}
+              </div>
               <div>
                 <div style={{
                   fontSize: 11.5, fontWeight: 700,
@@ -787,9 +797,7 @@ function BarChart({
       </div>
 
       {/* Labels */}
-      <div style={{
-        display: 'flex', gap: 4, marginTop: 8, padding: '0 4px',
-      }}>
+      <div style={{ display: 'flex', gap: 4, marginTop: 8, padding: '0 4px' }}>
         {buckets.map((b, i) => (
           <div key={i} style={{
             flex: 1, textAlign: 'center',

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Task, Project, Tag, Status, Priority, ViewMode, Theme, SubTask, Recurrence } from './types';
+import { Task, Project, Tag, Status, Priority, ViewMode, Theme, SubTask, Recurrence, AppSettings } from './types';
 import { RoadmapModeId } from './lib/roadmapEngine';
 
 function uid() {
@@ -22,6 +22,24 @@ const DEFAULT_TAGS: Tag[] = [
   { id: 'tag-4', name: 'Ideas',    color: '#F59E0B' },
 ];
 
+const DEFAULT_SETTINGS: AppSettings = {
+  autoArchiveTasks: 'never',
+  autoArchiveProjects: 'never',
+  overdueEscalationEnabled: false,
+  overdueEscalationDays: 3,
+  staleTaskEnabled: true,
+  staleTaskDays: 14,
+  dueDateBufferEnabled: true,
+  dueDateBufferDays: 2,
+  focusModeEnabled: false,
+  dailyTaskCapEnabled: false,
+  dailyTaskCap: 10,
+  complexityBalanceEnabled: false,
+  complexityBalanceMax: 3,
+  streakBonusEnabled: true,
+  earlyBirdBonusEnabled: true,
+};
+
 interface AppState {
   tasks: Task[];
   projects: Project[];
@@ -36,6 +54,7 @@ interface AppState {
   accentColor: string;
   weeklyXPGoal: number;
   earnedBadges: string[];
+  settings: AppSettings;
 
   // Task actions
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'order'>) => void;
@@ -72,6 +91,9 @@ interface AppState {
   setAccentColor: (color: string) => void;
   setWeeklyXPGoal: (xp: number) => void;
   awardBadge: (id: string) => void;
+
+  // Settings
+  updateSettings: (s: Partial<AppSettings>) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -90,6 +112,7 @@ export const useStore = create<AppState>()(
       accentColor: '#6366F1',
       weeklyXPGoal: 500,
       earnedBadges: [],
+      settings: DEFAULT_SETTINGS,
 
       addTask: (task) => {
         const tasks = get().tasks;
@@ -224,13 +247,15 @@ export const useStore = create<AppState>()(
           set({ earnedBadges: [...get().earnedBadges, id] });
         }
       },
+
+      updateSettings: (s) => set({ settings: { ...get().settings, ...s } }),
     }),
     { name: 'mydaypal-storage' }
   )
 );
 
 export function useFilteredTasks() {
-  const { tasks, projects, activeProjectId, searchQuery, filterPriority, filterTag } = useStore();
+  const { tasks, projects, activeProjectId, searchQuery, filterPriority, filterTag, settings } = useStore();
   const archivedProjectIds = new Set(projects.filter(p => p.archived).map(p => p.id));
   return tasks.filter(t => {
     // When viewing All Tasks, hide tasks belonging to archived projects
@@ -239,6 +264,15 @@ export function useFilteredTasks() {
     if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterPriority !== 'all' && t.priority !== filterPriority) return false;
     if (filterTag !== 'all' && !t.tags.includes(filterTag)) return false;
+
+    // Focus mode: only show urgent/due-today tasks
+    if (settings.focusModeEnabled) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const isUrgent = t.priority === 'high' || t.priority === 'critical';
+      const isDueToday = t.dueDate !== null && t.dueDate <= todayStr;
+      if (!isUrgent && !isDueToday) return false;
+    }
+
     return true;
   });
 }

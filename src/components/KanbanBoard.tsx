@@ -34,7 +34,7 @@ export default function KanbanBoard() {
   const [, setDraggingId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   const tasksByStatus = (status: Status) =>
