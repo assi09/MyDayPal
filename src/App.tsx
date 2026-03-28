@@ -135,8 +135,13 @@ function App() {
       }
     }
 
+    const handleOpenShortcuts = () => setShowShortcuts(v => !v);
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('open-shortcuts', handleOpenShortcuts);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('open-shortcuts', handleOpenShortcuts);
+    };
   }, [setViewMode]);
 
   function handleSplashDone() {

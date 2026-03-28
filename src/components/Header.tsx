@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Search, LayoutGrid, List, CalendarDays, Map, X, ChevronDown } from 'lucide-react';
+import { Search, LayoutGrid, List, CalendarDays, Map, X, ChevronDown, Keyboard } from 'lucide-react';
 import { format } from 'date-fns';
 import { Priority } from '../types';
 import { useStore } from '../store';
@@ -191,6 +191,24 @@ export default function Header() {
             active={filterTag !== 'all'}
           />
         )}
+
+        {/* Shortcuts button */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('open-shortcuts'))}
+          title="Keyboard shortcuts (?)"
+          className="btn-press"
+          style={{
+            width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
+            background: 'transparent', color: 'var(--text-muted)',
+            cursor: 'pointer', flexShrink: 0,
+            transition: 'color var(--t-base), border-color var(--t-base)',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+        >
+          <Keyboard size={14} strokeWidth={2} />
+        </button>
 
         {/* Clear filters */}
         {hasFilters && (
