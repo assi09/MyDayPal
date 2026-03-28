@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, CheckSquare, GripVertical, Trash2 } from 'lucide-react';
+import { Calendar, CheckSquare, GripVertical, Trash2, Timer } from 'lucide-react';
 import { Task } from '../types';
 import { useStore } from '../store';
 import { format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
@@ -36,7 +36,7 @@ interface Props {
 }
 
 export default function TaskCard({ task, onOpen, overlay }: Props) {
-  const { tags, deleteTask, settings } = useStore();
+  const { tags, deleteTask, settings, startPomodoro, pomodoroTaskId } = useStore();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   const [hovered, setHovered] = useState(false);
@@ -116,6 +116,25 @@ export default function TaskCard({ task, onOpen, overlay }: Props) {
           }}>
             <GripVertical size={13} strokeWidth={2} />
           </div>
+
+          {/* Pomodoro start */}
+          <button
+            onClick={e => { e.stopPropagation(); startPomodoro(task.id, task.title); }}
+            style={{
+              background: 'none', border: 'none',
+              color: pomodoroTaskId === task.id ? 'var(--accent)' : 'var(--text-muted)',
+              display: 'flex', alignItems: 'center',
+              padding: '1px 2px', borderRadius: 4,
+              opacity: hovered || pomodoroTaskId === task.id ? 1 : 0,
+              transition: 'opacity var(--t-base), color var(--t-fast)',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseLeave={e => (e.currentTarget.style.color = pomodoroTaskId === task.id ? 'var(--accent)' : 'var(--text-muted)')}
+            title="Start Pomodoro timer"
+          >
+            <Timer size={13} strokeWidth={1.8} />
+          </button>
 
           {/* Delete */}
           <button

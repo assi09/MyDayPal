@@ -1,6 +1,6 @@
 export type Priority   = 'low' | 'medium' | 'high' | 'critical';
 export type Status     = 'todo' | 'ongoing' | 'done';
-export type ViewMode   = 'kanban' | 'list' | 'calendar' | 'roadmap' | 'settings';
+export type ViewMode   = 'kanban' | 'list' | 'calendar' | 'roadmap';
 export type Theme      = 'dark' | 'light';
 export type Complexity = 1 | 2 | 3 | 4 | 5;
 
@@ -73,4 +73,7 @@ export interface AppSettings {
   // XP bonuses
   streakBonusEnabled: boolean;
   earlyBirdBonusEnabled: boolean;
+  // Pomodoro
+  pomodoroWorkMinutes: number;
+  pomodoroBreakMinutes: number;
 }

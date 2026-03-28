@@ -6,11 +6,13 @@ import {
 } from 'date-fns';
 import {
   TrendingUp, TrendingDown, Minus, Flame, Trophy, Zap, Calendar, BarChart3, Edit2, Check,
-  Target, Award, Crown, Star, Gem, Medal, Lock,
+  Target, Award, Crown, Star, Gem, Medal, Lock, FileDown,
 } from 'lucide-react';
 import { Task } from '../types';
 import { taskXP } from '../lib/roadmapEngine';
 import { useStore } from '../store';
+import { printHTML } from '../lib/pdf';
+import { generateStatsReport } from '../lib/pdfTemplates';
 
 // ─── Badge definitions ─────────────────────────────────────────────────────────
 
@@ -144,7 +146,7 @@ function bucketByMonth(items: { xp: number; doneAt: Date }[], months: number): T
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function XPDashboard({ tasks }: { tasks: Task[] }) {
-  const { accentColor, weeklyXPGoal, setWeeklyXPGoal, earnedBadges, awardBadge, settings } = useStore();
+  const { accentColor, weeklyXPGoal, setWeeklyXPGoal, earnedBadges, awardBadge, settings, activeProjectId, projects } = useStore();
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState(String(weeklyXPGoal));
 
@@ -236,6 +238,55 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
     setEditingGoal(false);
   }
 
+  function handleExport() {
+    const done = doneTasks(tasks, settings.earlyBirdBonusEnabled);
+    const activeProject = activeProjectId ? projects.find(p => p.id === activeProjectId) : null;
+    const scope = activeProject ? activeProject.name : 'All Tasks';
+    const totalXP = done.reduce((s, d) => s + d.xp, 0);
+    const streak = data.streak;
+    const allTasks = tasks;
+    const totalTasks = allTasks.length;
+    const doneTotalCount = done.length;
+    const completionRate = totalTasks > 0 ? Math.round((doneTotalCount / totalTasks) * 100) : 0;
+
+    const priorityList = ['critical', 'high', 'medium', 'low'];
+    const priorityColors: Record<string, string> = {
+      critical: '#DC2626', high: '#F97316', medium: '#F59E0B', low: '#22C55E',
+    };
+    const byPriority = priorityList.map(p => ({
+      priority: p,
+      done: done.filter(d => d.task.priority === p).length,
+      total: allTasks.filter(t => t.priority === p).length,
+      color: priorityColors[p],
+    }));
+
+    const topTasks = done.slice(-50).reverse().map(d => ({
+      title: d.task.title,
+      priority: d.task.priority,
+      xp: d.xp,
+      date: format(d.doneAt, 'MMM d, yyyy'),
+    }));
+
+    const badgeList = earnedBadges.map(id => {
+      const b = ALL_BADGES.find(b => b.id === id);
+      return b ? { label: b.label, desc: b.desc } : null;
+    }).filter(Boolean) as { label: string; desc: string }[];
+
+    const html = generateStatsReport({
+      generatedAt: format(new Date(), 'MMMM d, yyyy'),
+      scope,
+      totalXP,
+      tasksCompleted: doneTotalCount,
+      currentStreak: streak,
+      completionRate,
+      weeklyXP: data.weekly.map(w => ({ label: w.label, xp: w.xp })),
+      byPriority,
+      topTasks,
+      badges: badgeList,
+    });
+    printHTML(html);
+  }
+
   const cards: StatCard[] = [
     {
       label: 'Total XP', value: data.totalXP, sub: `${data.totalDone} tasks completed`,
@@ -284,6 +335,28 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
       flex: 1, overflow: 'auto', padding: '24px 28px 32px',
       display: 'flex', flexDirection: 'column', gap: 24,
     }}>
+
+      {/* ── Export button ── */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          onClick={handleExport}
+          className="btn-press"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 14px', borderRadius: 'var(--r-sm)',
+            border: '1px solid var(--border)',
+            background: 'var(--bg-secondary)', color: 'var(--text-secondary)',
+            fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all var(--t-base)',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+        >
+          <FileDown size={14} strokeWidth={2} />
+          Export Report
+        </button>
+      </div>
 
       {/* ── Weekly XP Goal ring + Primary stat cards ── */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>

@@ -4,10 +4,12 @@ import {
   addDays, addMonths, subMonths, isSameMonth, isSameDay,
   isToday, isPast, parseISO, isWeekend,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Plus, X, Clock, CheckCircle2, Circle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Clock, CheckCircle2, Circle, FileDown } from 'lucide-react';
 import { Task } from '../types';
 import { useStore, useFilteredTasks } from '../store';
 import TaskModal from './TaskModal';
+import { printHTML } from '../lib/pdf';
+import { generateCalendarReport } from '../lib/pdfTemplates';
 
 const P_HEX: Record<string, string> = {
   critical: '#DC2626',
@@ -33,6 +35,61 @@ export default function CalendarView() {
   const [editingTask, setEditingTask] = useState<Task | null | 'new'>(null);
   const [newDueDate, setNewDueDate] = useState<string>('');
   const [hoveredDay, setHoveredDay] = useState<number>(-1);
+
+  function handleExportCalendar() {
+    const monthStart = startOfMonth(current);
+    const monthEnd = endOfMonth(current);
+    const gridStart = startOfWeek(monthStart);
+    const gridEnd = endOfWeek(monthEnd);
+
+    const weeks: { date: Date; inMonth: boolean; tasks: { title: string; priority: string; status: string }[] }[][] = [];
+    let day = gridStart;
+    while (day <= gridEnd) {
+      const week: { date: Date; inMonth: boolean; tasks: { title: string; priority: string; status: string }[] }[] = [];
+      for (let i = 0; i < 7; i++) {
+        const inMonth = isSameMonth(day, current);
+        const dayTasks = tasks
+          .filter(t => t.dueDate && isSameDay(parseISO(t.dueDate), day))
+          .map(t => ({ title: t.title, priority: t.priority, status: t.status }));
+        week.push({ date: new Date(day), inMonth, tasks: dayTasks });
+        day = addDays(day, 1);
+      }
+      weeks.push(week);
+    }
+
+    const tasksDueThisMonth = tasks.filter(t => {
+      if (!t.dueDate) return false;
+      const d = parseISO(t.dueDate);
+      return d >= monthStart && d <= monthEnd;
+    });
+
+    const overdue = tasksDueThisMonth.filter(t =>
+      t.status !== 'done' && t.dueDate && isPast(parseISO(t.dueDate)) && !isToday(parseISO(t.dueDate))
+    ).length;
+
+    const taskList = tasksDueThisMonth
+      .filter(t => t.dueDate)
+      .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''))
+      .map(t => ({
+        date: format(parseISO(t.dueDate!), 'MMM d'),
+        title: t.title,
+        priority: t.priority,
+        status: t.status,
+      }));
+
+    const html = generateCalendarReport({
+      generatedAt: format(new Date(), 'MMMM d, yyyy'),
+      monthLabel: format(current, 'MMMM yyyy'),
+      weeks,
+      monthStats: {
+        due: tasksDueThisMonth.length,
+        completed: tasksDueThisMonth.filter(t => t.status === 'done').length,
+        overdue,
+      },
+      taskList,
+    });
+    printHTML(html);
+  }
 
   const monthStart = startOfMonth(current);
   const monthEnd   = endOfMonth(current);
@@ -129,6 +186,26 @@ export default function CalendarView() {
               <Stat value={tasksDueThisMonth.length} label="due this month" color="var(--text-muted)" />
               {overdueCount > 0 && <Stat value={overdueCount} label="overdue" color="#EF4444" />}
             </div>
+
+            {/* Export button */}
+            <button
+              onClick={handleExportCalendar}
+              className="btn-press"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '5px 11px', borderRadius: 'var(--r-sm)',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-card)', color: 'var(--text-muted)',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                fontFamily: 'inherit', transition: 'all var(--t-base)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              title="Export calendar report"
+            >
+              <FileDown size={13} strokeWidth={2} />
+              Export
+            </button>
           </div>
 
           {/* ── Day-of-week headers ── */}

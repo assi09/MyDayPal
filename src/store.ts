@@ -38,6 +38,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   complexityBalanceMax: 3,
   streakBonusEnabled: true,
   earlyBirdBonusEnabled: true,
+  pomodoroWorkMinutes: 25,
+  pomodoroBreakMinutes: 5,
 };
 
 interface AppState {
@@ -94,6 +96,12 @@ interface AppState {
 
   // Settings
   updateSettings: (s: Partial<AppSettings>) => void;
+
+  // Pomodoro
+  pomodoroTaskId: string | null;
+  pomodoroTaskTitle: string;
+  startPomodoro: (taskId: string, taskTitle: string) => void;
+  stopPomodoro: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -113,6 +121,8 @@ export const useStore = create<AppState>()(
       weeklyXPGoal: 500,
       earnedBadges: [],
       settings: DEFAULT_SETTINGS,
+      pomodoroTaskId: null,
+      pomodoroTaskTitle: '',
 
       addTask: (task) => {
         const tasks = get().tasks;
@@ -249,6 +259,9 @@ export const useStore = create<AppState>()(
       },
 
       updateSettings: (s) => set({ settings: { ...get().settings, ...s } }),
+
+      startPomodoro: (taskId, taskTitle) => set({ pomodoroTaskId: taskId, pomodoroTaskTitle: taskTitle }),
+      stopPomodoro: () => set({ pomodoroTaskId: null, pomodoroTaskTitle: '' }),
     }),
     { name: 'mydaypal-storage' }
   )
