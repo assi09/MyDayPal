@@ -53,11 +53,28 @@ export default function WeeklyReview({ tasks, onClose }: Props) {
   // Total tasks count
   const totalDone = tasks.filter(t => t.status === 'done').length;
 
-  // Tasks due next week
+  // Tasks due next week (not done yet — heads up preview only)
   const nextWeekTasks = tasks.filter(t => {
     if (t.status === 'done' || !t.dueDate) return false;
     const due = parseISO(t.dueDate);
     return due >= nextWeekStart && due <= nextWeekEnd;
+  }).sort((a, b) => {
+    const order = { critical: 0, high: 1, medium: 2, low: 3 };
+    return order[a.priority] - order[b.priority];
+  });
+
+  // Tasks already completed ahead of schedule for next week
+  const completedAheadNextWeek = tasks.filter(t => {
+    if (t.status !== 'done' || !t.dueDate) return false;
+    const due = parseISO(t.dueDate);
+    return due >= nextWeekStart && due <= nextWeekEnd;
+  });
+
+  // Overdue tasks (not done, due before today)
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const overdueTasks = tasks.filter(t => {
+    if (t.status === 'done' || !t.dueDate) return false;
+    return t.dueDate < todayStr;
   }).sort((a, b) => {
     const order = { critical: 0, high: 1, medium: 2, low: 3 };
     return order[a.priority] - order[b.priority];
@@ -74,7 +91,7 @@ export default function WeeklyReview({ tasks, onClose }: Props) {
     onClose();
   }
 
-  const STEPS = ['Summary', 'Reflect', 'Next Week'];
+  const STEPS = ['Summary', 'Reflect', 'Looking Ahead'];
 
   return (
     <div
@@ -314,72 +331,101 @@ export default function WeeklyReview({ tasks, onClose }: Props) {
             </div>
           )}
 
-          {/* ── Step 2: Next Week ── */}
+          {/* ── Step 2: Looking Ahead ── */}
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
-              }}>
-                <Calendar size={16} color="var(--accent)" strokeWidth={2} />
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {format(nextWeekStart, 'MMMM d')} – {format(nextWeekEnd, 'MMMM d, yyyy')}
-                </span>
-              </div>
 
-              {nextWeekTasks.length > 0 ? (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                    {nextWeekTasks.length} task{nextWeekTasks.length !== 1 ? 's' : ''} due next week
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {nextWeekTasks.map(t => (
-                      <div key={t.id} style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '10px 12px', borderRadius: 'var(--r-md)',
-                        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
-                      }}>
-                        <div style={{
-                          width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                          background: P_COLORS[t.priority] ?? '#6366F1',
-                        }} />
-                        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {t.title}
-                        </span>
-                        {t.dueDate && (
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
-                            {format(parseISO(t.dueDate), 'EEE, MMM d')}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
+              {/* Ahead-of-schedule stat */}
+              {completedAheadNextWeek.length > 0 && (
                 <div style={{
-                  padding: '24px', textAlign: 'center',
-                  background: 'var(--bg-secondary)', borderRadius: 'var(--r-md)',
-                  border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '14px 16px', borderRadius: 'var(--r-md)',
+                  background: '#22C55E0E', border: '1px solid #22C55E30',
                 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                    No tasks due next week
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    Your schedule is wide open!
+                  <Check size={18} color="#22C55E" strokeWidth={2.5} />
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {completedAheadNextWeek.length} task{completedAheadNextWeek.length !== 1 ? 's' : ''} already done ahead of schedule
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                      You cleared work due next week — great forward planning.
+                    </div>
                   </div>
                 </div>
               )}
 
+              {/* Overdue tasks to carry forward */}
+              {overdueTasks.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#F97316', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                    {overdueTasks.length} overdue — carry into next week
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {overdueTasks.slice(0, 5).map(t => (
+                      <div key={t.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 12px', borderRadius: 'var(--r-md)',
+                        background: 'var(--bg-secondary)', border: '1px solid #F9731620',
+                      }}>
+                        <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: P_COLORS[t.priority] ?? '#6366F1' }} />
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t.title}</span>
+                        <span style={{ fontSize: 10.5, color: '#F97316', fontWeight: 600, flexShrink: 0 }}>
+                          {t.dueDate ? format(parseISO(t.dueDate), 'MMM d') : 'Overdue'}
+                        </span>
+                      </div>
+                    ))}
+                    {overdueTasks.length > 5 && (
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 12px' }}>
+                        +{overdueTasks.length - 5} more overdue
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Upcoming next week — preview only */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                  <Calendar size={13} color="var(--text-muted)" strokeWidth={2} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Due next week — {format(nextWeekStart, 'MMM d')}–{format(nextWeekEnd, 'MMM d')}
+                  </span>
+                </div>
+                {nextWeekTasks.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {nextWeekTasks.map(t => (
+                      <div key={t.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 12px', borderRadius: 'var(--r-md)',
+                        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                      }}>
+                        <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: P_COLORS[t.priority] ?? '#6366F1' }} />
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>{t.title}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
+                          {t.dueDate ? format(parseISO(t.dueDate), 'EEE, MMM d') : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>
+                    Nothing due next week yet — enjoy the breathing room.
+                  </div>
+                )}
+              </div>
+
               <div style={{
-                padding: '16px 18px', borderRadius: 'var(--r-md)',
-                background: 'var(--accent-soft)',
-                border: '1px solid var(--accent)',
+                padding: '14px 18px', borderRadius: 'var(--r-md)',
+                background: 'var(--accent-soft)', border: '1px solid var(--accent)',
                 textAlign: 'center',
               }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>
-                  Have a great week!
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', marginBottom: 3 }}>
+                  Have a great week ahead!
                 </div>
-                <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  You are doing great. Keep the momentum going!
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {completedThisWeek.length > 0
+                    ? `You completed ${completedThisWeek.length} task${completedThisWeek.length !== 1 ? 's' : ''} this week. Keep the momentum going.`
+                    : 'Every week is a fresh start. You have got this.'}
                 </div>
               </div>
             </div>
