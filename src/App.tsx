@@ -11,7 +11,7 @@ import SplashScreen from "./components/SplashScreen";
 import Onboarding, { hasOnboarded } from "./components/Onboarding";
 
 function App() {
-  const { theme, viewMode, tasks } = useStore();
+  const { theme, viewMode, tasks, accentColor } = useStore();
   const notifyRef = useRef(false);
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -19,6 +19,15 @@ function App() {
   useEffect(() => {
     document.documentElement.className = theme;
   }, [theme]);
+
+  useEffect(() => {
+    const r = document.documentElement.style;
+    r.setProperty('--accent', accentColor);
+    // Compute hover (slightly darker) and soft/glow versions
+    r.setProperty('--accent-hover', accentColor + 'DD');
+    r.setProperty('--accent-soft', accentColor + '16');
+    r.setProperty('--accent-glow', accentColor + '38');
+  }, [accentColor]);
 
   // Run notification check on load and every 5 minutes
   useEffect(() => {

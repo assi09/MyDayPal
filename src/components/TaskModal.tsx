@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   X, Plus, Trash2, Check, Calendar,
-  Tag, AlignLeft, CheckSquare, Zap,
+  Tag, AlignLeft, CheckSquare, Zap, RefreshCw, Clock,
 } from 'lucide-react';
-import { Task, Priority, Status, Complexity } from '../types';
+import { Task, Priority, Status, Complexity, Recurrence, RecurrenceType } from '../types';
 import { useStore } from '../store';
 
 const PRIORITIES: { value: Priority; label: string; color: string }[] = [
@@ -42,6 +42,10 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo', defau
   const [newSubtask, setNewSubtask]     = useState('');
   const [newTagName, setNewTagName]     = useState('');
   const [addingTag, setAddingTag]       = useState(false);
+  const [recurrence, setRecurrence]     = useState<Recurrence | undefined>(task?.recurrence);
+  const [estimatedMinutes, setEstimatedMinutes] = useState<number | undefined>(task?.estimatedMinutes);
+  const [showSubtaskConfirm, setShowSubtaskConfirm] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<Status | null>(null);
 
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -55,9 +59,10 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo', defau
         title, description, priority, status,
         projectId, tags: selectedTags,
         dueDate: dueDate || null, complexity,
+        recurrence, estimatedMinutes,
       });
     }
-  }, [title, description, priority, status, projectId, selectedTags, dueDate, complexity]);
+  }, [title, description, priority, status, projectId, selectedTags, dueDate, complexity, recurrence, estimatedMinutes]);
 
   function handleSave() {
     if (!title.trim()) return;
@@ -66,9 +71,48 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo', defau
         title: title.trim(), description, priority, status,
         projectId, tags: selectedTags, subtasks: [],
         dueDate: dueDate || null, complexity,
+        recurrence, estimatedMinutes,
       });
     }
     onClose();
+  }
+
+  function handleStatusChange(newStatus: Status) {
+    if (newStatus === 'done' && status !== 'done' && !isNew && task) {
+      const currentTask = useStore.getState().tasks.find(t => t.id === task.id);
+      const hasIncomplete = currentTask?.subtasks.some(s => !s.completed) ?? false;
+      if (hasIncomplete) {
+        setPendingStatus(newStatus);
+        setShowSubtaskConfirm(true);
+        return;
+      }
+    }
+    setStatus(newStatus);
+  }
+
+  function handleCompleteAllSubtasks() {
+    if (task && pendingStatus) {
+      const currentTask = useStore.getState().tasks.find(t => t.id === task.id);
+      if (currentTask) {
+        currentTask.subtasks.forEach(s => {
+          if (!s.completed) toggleSubtask(task.id, s.id);
+        });
+      }
+      setStatus(pendingStatus);
+    }
+    setShowSubtaskConfirm(false);
+    setPendingStatus(null);
+  }
+
+  function handleMarkDoneAnyway() {
+    if (pendingStatus) setStatus(pendingStatus);
+    setShowSubtaskConfirm(false);
+    setPendingStatus(null);
+  }
+
+  function handleCancelSubtaskConfirm() {
+    setShowSubtaskConfirm(false);
+    setPendingStatus(null);
   }
 
   function handleAddSubtask() {
@@ -91,8 +135,18 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo', defau
     setSelectedTags(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
   }
 
+  function formatMinutes(mins: number): string {
+    if (mins < 60) return `${mins}m`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }
+
   const currentTask = useStore(s => s.tasks.find(t => t.id === task?.id));
   const activePriority = PRIORITIES.find(p => p.value === priority)!;
+
+  // Filter out archived projects for the project picker
+  const activeProjects = projects.filter(p => !p.archived);
 
   return (
     <div
@@ -158,12 +212,32 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo', defau
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>
           {/* ── Metadata pills ── */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
-            {/* Status */}
-            <MetaChip
-              value={status}
-              onChange={v => setStatus(v as Status)}
-              options={STATUSES.map(s => ({ value: s.value, label: s.label }))}
-            />
+            {/* Status with subtask confirm logic */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <select
+                value={status}
+                onChange={e => handleStatusChange(e.target.value as Status)}
+                style={{
+                  appearance: 'none',
+                  padding: '5px 22px 5px 10px',
+                  borderRadius: 'var(--r-full)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-tertiary)',
+                  color: 'var(--text-secondary)',
+                  fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                {STATUSES.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+              <div style={{
+                position: 'absolute', right: 8, pointerEvents: 'none',
+                width: 4, height: 4, borderRadius: '50%',
+                background: 'var(--text-muted)',
+              }} />
+            </div>
 
             {/* Priority */}
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -199,10 +273,63 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo', defau
               onChange={v => setProjectId(v || null)}
               options={[
                 { value: '', label: 'No Project' },
-                ...projects.map(p => ({ value: p.id, label: p.name })),
+                ...activeProjects.map(p => ({ value: p.id, label: p.name })),
               ]}
             />
           </div>
+
+          {/* ── Subtask confirm dialog ── */}
+          {showSubtaskConfirm && (
+            <div style={{
+              marginBottom: 18,
+              padding: '14px 16px',
+              borderRadius: 'var(--r-md)',
+              border: '1px solid var(--border-strong)',
+              background: 'var(--bg-tertiary)',
+              display: 'flex', flexDirection: 'column', gap: 10,
+            }}>
+              <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>
+                Some subtasks aren't finished. What would you like to do?
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleCompleteAllSubtasks}
+                  className="btn-press"
+                  style={{
+                    padding: '7px 14px', borderRadius: 'var(--r-sm)', border: 'none',
+                    background: 'var(--accent)', color: '#fff',
+                    fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Complete all subtasks
+                </button>
+                <button
+                  onClick={handleMarkDoneAnyway}
+                  className="btn-press"
+                  style={{
+                    padding: '7px 14px', borderRadius: 'var(--r-sm)',
+                    border: '1px solid var(--border)',
+                    background: 'transparent', color: 'var(--text-secondary)',
+                    fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Mark task done anyway
+                </button>
+                <button
+                  onClick={handleCancelSubtaskConfirm}
+                  className="btn-press"
+                  style={{
+                    padding: '7px 14px', borderRadius: 'var(--r-sm)',
+                    border: '1px solid var(--border)',
+                    background: 'transparent', color: 'var(--text-muted)',
+                    fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Description ── */}
           <FieldSection icon={<AlignLeft size={13} />} label="Description">
@@ -244,6 +371,127 @@ export default function TaskModal({ task, onClose, defaultStatus = 'todo', defau
               {dueDate && (
                 <button
                   onClick={() => setDueDate('')}
+                  style={{
+                    background: 'none', border: 'none',
+                    color: 'var(--text-muted)', fontSize: 12,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </FieldSection>
+
+          {/* ── Recurrence ── */}
+          <FieldSection icon={<RefreshCw size={13} />} label="Recurrence">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => setRecurrence(undefined)}
+                  className="btn-press"
+                  style={{
+                    padding: '5px 12px', borderRadius: 'var(--r-full)',
+                    fontSize: 12, fontWeight: 600,
+                    border: `1px solid ${!recurrence ? 'var(--accent)' : 'var(--border)'}`,
+                    background: !recurrence ? 'var(--accent-soft)' : 'transparent',
+                    color: !recurrence ? 'var(--accent)' : 'var(--text-muted)',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    transition: 'all var(--t-base)',
+                  }}
+                >
+                  None
+                </button>
+                <button
+                  onClick={() => setRecurrence(recurrence ?? { type: 'weekly', interval: 1 })}
+                  className="btn-press"
+                  style={{
+                    padding: '5px 12px', borderRadius: 'var(--r-full)',
+                    fontSize: 12, fontWeight: 600,
+                    border: `1px solid ${recurrence ? 'var(--accent)' : 'var(--border)'}`,
+                    background: recurrence ? 'var(--accent-soft)' : 'transparent',
+                    color: recurrence ? 'var(--accent)' : 'var(--text-muted)',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    transition: 'all var(--t-base)',
+                  }}
+                >
+                  Repeat
+                </button>
+              </div>
+
+              {recurrence && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Every</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={recurrence.interval}
+                    onChange={e => setRecurrence({ ...recurrence, interval: Math.max(1, parseInt(e.target.value) || 1) })}
+                    className="field-focus"
+                    style={{
+                      width: 52, padding: '5px 8px',
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--r-sm)',
+                      color: 'var(--text-primary)', fontSize: 13,
+                      fontFamily: 'inherit', textAlign: 'center',
+                    }}
+                  />
+                  <select
+                    value={recurrence.type}
+                    onChange={e => setRecurrence({ ...recurrence, type: e.target.value as RecurrenceType })}
+                    style={{
+                      appearance: 'none',
+                      padding: '5px 10px',
+                      borderRadius: 'var(--r-sm)',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)',
+                      fontSize: 12, fontWeight: 600,
+                      cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    <option value="daily">Day{recurrence.interval > 1 ? 's' : ''}</option>
+                    <option value="weekly">Week{recurrence.interval > 1 ? 's' : ''}</option>
+                    <option value="monthly">Month{recurrence.interval > 1 ? 's' : ''}</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          </FieldSection>
+
+          {/* ── Time Estimate ── */}
+          <FieldSection icon={<Clock size={13} />} label="Time Estimate">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="number"
+                min={0}
+                step={5}
+                value={estimatedMinutes ?? ''}
+                onChange={e => {
+                  const v = parseInt(e.target.value);
+                  setEstimatedMinutes(isNaN(v) || v <= 0 ? undefined : v);
+                }}
+                placeholder="Minutes…"
+                className="field-focus"
+                style={{
+                  width: 100, padding: '7px 11px',
+                  background: 'var(--bg-tertiary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--r-sm)',
+                  color: 'var(--text-primary)', fontSize: 13,
+                  fontFamily: 'inherit',
+                }}
+              />
+              {estimatedMinutes && estimatedMinutes > 0 && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
+                  = {formatMinutes(estimatedMinutes)}
+                </span>
+              )}
+              {estimatedMinutes && (
+                <button
+                  onClick={() => setEstimatedMinutes(undefined)}
                   style={{
                     background: 'none', border: 'none',
                     color: 'var(--text-muted)', fontSize: 12,

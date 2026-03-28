@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sun, Moon, Layers, Plus, Trash2, LayoutGrid, List, CalendarDays, Map } from 'lucide-react';
+import { Sun, Moon, Layers, Plus, Trash2, LayoutGrid, List, CalendarDays, Map, Archive, RotateCcw } from 'lucide-react';
 import { useStore } from '../store';
 import iconMark from '../assets/icon-mark.svg';
 
@@ -8,18 +8,29 @@ const PROJECT_COLORS = [
   '#14B8A6', '#3B82F6', '#EF4444', '#A855F7',
 ];
 
+const ACCENT_COLORS = [
+  '#6366F1', '#3B82F6', '#06B6D4', '#14B8A6',
+  '#22C55E', '#F59E0B', '#F97316', '#EC4899',
+  '#A855F7', '#F43F5E',
+];
+
 export default function Sidebar() {
   const {
     theme, toggleTheme,
     projects, activeProjectId, setActiveProject,
-    addProject, deleteProject,
+    addProject, updateProject, deleteProject, archiveProject,
     viewMode, setViewMode,
+    accentColor, setAccentColor,
   } = useStore();
 
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectColor, setNewProjectColor] = useState(PROJECT_COLORS[0]);
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const activeProjects = projects.filter(p => !p.archived);
+  const archivedProjects = projects.filter(p => p.archived);
 
   function handleAddProject() {
     if (!newProjectName.trim()) return;
@@ -27,6 +38,10 @@ export default function Sidebar() {
     setNewProjectName('');
     setNewProjectColor(PROJECT_COLORS[0]);
     setAddingProject(false);
+  }
+
+  function handleUnarchiveProject(id: string) {
+    updateProject(id, { archived: false });
   }
 
   return (
@@ -183,7 +198,7 @@ export default function Sidebar() {
 
         {/* Project list */}
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {projects.length === 0 && !addingProject && (
+          {activeProjects.length === 0 && !addingProject && (
             <div style={{
               padding: '12px 8px',
               fontSize: 12,
@@ -193,7 +208,7 @@ export default function Sidebar() {
               No projects yet. Hit + to create one.
             </div>
           )}
-          {projects.map(p => (
+          {activeProjects.map(p => (
             <div
               key={p.id}
               style={{ position: 'relative' }}
@@ -203,7 +218,7 @@ export default function Sidebar() {
               <button
                 className={`sidebar-item btn-press ${activeProjectId === p.id ? 'active' : ''}`}
                 onClick={() => setActiveProject(p.id)}
-                style={{ paddingRight: 32 }}
+                style={{ paddingRight: 56 }}
               >
                 <div style={{
                   width: 8, height: 8, borderRadius: '50%',
@@ -222,6 +237,27 @@ export default function Sidebar() {
                 </span>
               </button>
 
+              {/* Archive button (hover only) */}
+              <button
+                onClick={e => { e.stopPropagation(); archiveProject(p.id); }}
+                style={{
+                  position: 'absolute',
+                  right: 30, top: '50%', transform: 'translateY(-50%)',
+                  width: 20, height: 20, borderRadius: 5,
+                  border: 'none', background: 'transparent',
+                  color: 'var(--text-muted)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                  opacity: hoveredProject === p.id ? 1 : 0,
+                  transition: 'opacity var(--t-base), color var(--t-fast)',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                title="Archive project"
+              >
+                <Archive size={11} />
+              </button>
+
               {/* Delete button (hover only) */}
               <button
                 onClick={e => { e.stopPropagation(); deleteProject(p.id); }}
@@ -238,20 +274,124 @@ export default function Sidebar() {
                 }}
                 onMouseEnter={e => (e.currentTarget.style.color = 'var(--priority-high)')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                title="Delete project"
               >
                 <Trash2 size={11} />
               </button>
             </div>
           ))}
+
+          {/* ── Archived section ── */}
+          {archivedProjects.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                onClick={() => setShowArchived(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-muted)', fontSize: 10.5, fontWeight: 700,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  padding: '4px 4px', width: '100%', fontFamily: 'inherit',
+                  transition: 'color var(--t-base)',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                <Archive size={10} strokeWidth={2} />
+                Archived ({archivedProjects.length})
+                <span style={{ marginLeft: 'auto', fontSize: 9 }}>{showArchived ? '▲' : '▼'}</span>
+              </button>
+
+              {showArchived && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+                  {archivedProjects.map(p => (
+                    <div
+                      key={p.id}
+                      style={{ position: 'relative' }}
+                      onMouseEnter={() => setHoveredProject(p.id)}
+                      onMouseLeave={() => setHoveredProject(null)}
+                    >
+                      <button
+                        className="sidebar-item btn-press"
+                        onClick={() => setActiveProject(p.id)}
+                        style={{ paddingRight: 32, opacity: 0.55 }}
+                      >
+                        <div style={{
+                          width: 8, height: 8, borderRadius: '50%',
+                          background: p.color, flexShrink: 0,
+                        }} />
+                        <span style={{
+                          flex: 1, overflow: 'hidden',
+                          textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          textDecoration: 'line-through',
+                        }}>
+                          {p.name}
+                        </span>
+                      </button>
+
+                      {/* Unarchive button */}
+                      <button
+                        onClick={e => { e.stopPropagation(); handleUnarchiveProject(p.id); }}
+                        style={{
+                          position: 'absolute',
+                          right: 8, top: '50%', transform: 'translateY(-50%)',
+                          width: 20, height: 20, borderRadius: 5,
+                          border: 'none', background: 'transparent',
+                          color: 'var(--text-muted)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer',
+                          opacity: hoveredProject === p.id ? 1 : 0,
+                          transition: 'opacity var(--t-base), color var(--t-fast)',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent)')}
+                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                        title="Unarchive project"
+                      >
+                        <RotateCcw size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ── Bottom: Theme toggle ── */}
+      {/* ── Bottom area ── */}
       <div style={{
         padding: '12px 12px 20px',
         borderTop: '1px solid var(--border)',
         marginTop: 8,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
       }}>
+        {/* ── Appearance / Accent color ── */}
+        <div>
+          <SectionLabel style={{ marginBottom: 6 }}>Accent Color</SectionLabel>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '0 2px' }}>
+            {ACCENT_COLORS.map(c => (
+              <button
+                key={c}
+                onClick={() => setAccentColor(c)}
+                title={c}
+                style={{
+                  width: 16, height: 16, borderRadius: '50%',
+                  background: c,
+                  border: accentColor === c ? `2px solid var(--text-primary)` : '2px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'border-color var(--t-fast), transform var(--t-fast)',
+                  outline: 'none',
+                  boxShadow: accentColor === c ? `0 0 0 1px ${c}` : 'none',
+                  transform: accentColor === c ? 'scale(1.2)' : 'scale(1)',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ── Theme toggle ── */}
         <button
           onClick={toggleTheme}
           className="sidebar-item btn-press"

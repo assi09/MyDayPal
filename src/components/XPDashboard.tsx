@@ -1,12 +1,31 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import {
   startOfDay, startOfWeek, startOfMonth,
   subDays, subWeeks, subMonths,
   format, parseISO, isSameDay, differenceInCalendarDays,
 } from 'date-fns';
-import { TrendingUp, TrendingDown, Minus, Flame, Trophy, Zap, Calendar, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Flame, Trophy, Zap, Calendar, BarChart3, Edit2, Check } from 'lucide-react';
 import { Task } from '../types';
 import { taskXP } from '../lib/roadmapEngine';
+import { useStore } from '../store';
+
+// ─── Badge definitions ─────────────────────────────────────────────────────────
+
+const ALL_BADGES = [
+  { id: 'first_task',    label: 'First Steps',      desc: 'Complete your first task',   icon: '🎯', req: '1 task done' },
+  { id: 'ten_tasks',     label: 'Getting Rolling',  desc: 'Complete 10 tasks',           icon: '🚀', req: '10 tasks done' },
+  { id: 'fifty_tasks',   label: 'Productivity Pro', desc: 'Complete 50 tasks',           icon: '💪', req: '50 tasks done' },
+  { id: 'hundred_tasks', label: 'Century Club',     desc: 'Complete 100 tasks',          icon: '💯', req: '100 tasks done' },
+  { id: 'streak_3',      label: 'On a Roll',        desc: '3-day completion streak',     icon: '🔥', req: '3-day streak' },
+  { id: 'streak_7',      label: 'Week Warrior',     desc: '7-day completion streak',     icon: '⚡', req: '7-day streak' },
+  { id: 'streak_30',     label: 'Unstoppable',      desc: '30-day completion streak',    icon: '👑', req: '30-day streak' },
+  { id: 'xp_100',        label: 'XP Rookie',        desc: 'Earn 100 XP total',           icon: '⭐', req: '100 total XP' },
+  { id: 'xp_500',        label: 'XP Climber',       desc: 'Earn 500 XP total',           icon: '🌟', req: '500 total XP' },
+  { id: 'xp_2000',       label: 'XP Elite',         desc: 'Earn 2,000 XP total',         icon: '💎', req: '2,000 total XP' },
+  { id: 'xp_10000',      label: 'XP Legend',        desc: 'Earn 10,000 XP total',        icon: '🏆', req: '10,000 total XP' },
+  { id: 'speed_demon',   label: 'Speed Demon',      desc: 'Complete 5 tasks in one day', icon: '⚡', req: '5 tasks in a day' },
+  { id: 'overachiever',  label: 'Overachiever',     desc: 'Beat your weekly XP goal',    icon: '🎖️', req: 'Beat weekly goal' },
+];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,6 +120,10 @@ function bucketByMonth(items: { xp: number; doneAt: Date }[], months: number): T
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function XPDashboard({ tasks }: { tasks: Task[] }) {
+  const { accentColor, weeklyXPGoal, setWeeklyXPGoal, earnedBadges, awardBadge } = useStore();
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState(String(weeklyXPGoal));
+
   const data = useMemo(() => {
     const done = doneTasks(tasks);
     const now = new Date();
@@ -130,14 +153,60 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
     const weekTrend = lastWeekXP > 0 ? Math.round(((thisWeekXP - lastWeekXP) / lastWeekXP) * 100) : (thisWeekXP > 0 ? 100 : 0);
     const monthTrend = lastMonthXP > 0 ? Math.round(((thisMonthXP - lastMonthXP) / lastMonthXP) * 100) : (thisMonthXP > 0 ? 100 : 0);
 
+    // Heatmap: last 105 days (15 weeks)
+    const heatmapDays: { date: Date; xp: number; tasks: number }[] = [];
+    for (let i = 104; i >= 0; i--) {
+      const day = subDays(today, i);
+      const dayItems = done.filter(it => isSameDay(it.doneAt, day));
+      heatmapDays.push({
+        date: day,
+        xp: dayItems.reduce((s, it) => s + it.xp, 0),
+        tasks: dayItems.length,
+      });
+    }
+
+    // Max tasks in a day (for speed demon badge)
+    const maxTasksInDay = Math.max(0, ...heatmapDays.map(d => d.tasks));
+
     return {
       totalXP, todayXP, thisWeekXP, thisMonthXP,
       avgPerDay, avgPerWeek, streak,
       weekTrend, monthTrend,
       daily, weekly, monthly,
       totalDone: done.length,
+      heatmapDays,
+      maxTasksInDay,
     };
   }, [tasks]);
+
+  // ── Badge auto-award logic ──────────────────────────────────────────────────
+  useEffect(() => {
+    const { totalDone, totalXP, streak, maxTasksInDay, thisWeekXP } = data;
+
+    if (totalDone >= 1)   awardBadge('first_task');
+    if (totalDone >= 10)  awardBadge('ten_tasks');
+    if (totalDone >= 50)  awardBadge('fifty_tasks');
+    if (totalDone >= 100) awardBadge('hundred_tasks');
+
+    if (streak >= 3)  awardBadge('streak_3');
+    if (streak >= 7)  awardBadge('streak_7');
+    if (streak >= 30) awardBadge('streak_30');
+
+    if (totalXP >= 100)   awardBadge('xp_100');
+    if (totalXP >= 500)   awardBadge('xp_500');
+    if (totalXP >= 2000)  awardBadge('xp_2000');
+    if (totalXP >= 10000) awardBadge('xp_10000');
+
+    if (maxTasksInDay >= 5) awardBadge('speed_demon');
+    if (thisWeekXP >= weeklyXPGoal && weeklyXPGoal > 0) awardBadge('overachiever');
+  }, [data, weeklyXPGoal]);
+
+  function handleGoalSave() {
+    const v = parseInt(goalInput);
+    if (!isNaN(v) && v > 0) setWeeklyXPGoal(v);
+    else setGoalInput(String(weeklyXPGoal));
+    setEditingGoal(false);
+  }
 
   const cards: StatCard[] = [
     {
@@ -175,16 +244,126 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
     },
   ];
 
+  // Weekly goal ring values
+  const goalProgress = weeklyXPGoal > 0 ? Math.min(1, data.thisWeekXP / weeklyXPGoal) : 0;
+  const ringRadius = 40;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringDash = goalProgress * ringCircumference;
+
   return (
     <div className="animate-fade" style={{
       flex: 1, overflow: 'auto', padding: '24px 28px 32px',
       display: 'flex', flexDirection: 'column', gap: 24,
     }}>
-      {/* ── Primary stat cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-        {cards.map(c => (
-          <StatCardUI key={c.label} card={c} />
-        ))}
+
+      {/* ── Weekly XP Goal ring + Primary stat cards ── */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
+        {/* Weekly goal ring */}
+        <div style={{
+          padding: '20px', borderRadius: 'var(--r-lg)',
+          background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-xs)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', gap: 10, minWidth: 148, flexShrink: 0,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Weekly Goal
+          </div>
+          <div style={{ position: 'relative', width: 100, height: 100 }}>
+            <svg width={100} height={100} style={{ transform: 'rotate(-90deg)' }}>
+              {/* Track */}
+              <circle
+                cx={50} cy={50} r={ringRadius}
+                fill="none"
+                stroke="var(--bg-hover)"
+                strokeWidth={8}
+              />
+              {/* Progress */}
+              <circle
+                cx={50} cy={50} r={ringRadius}
+                fill="none"
+                stroke={accentColor}
+                strokeWidth={8}
+                strokeLinecap="round"
+                strokeDasharray={`${ringDash} ${ringCircumference}`}
+                style={{ transition: 'stroke-dasharray 0.6s cubic-bezier(0.4,0,0.2,1)' }}
+              />
+            </svg>
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              gap: 1,
+            }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
+                {Math.round(goalProgress * 100)}%
+              </span>
+              <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)' }}>
+                {data.thisWeekXP.toLocaleString()} XP
+              </span>
+            </div>
+          </div>
+
+          {/* Goal display / edit */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            {editingGoal ? (
+              <>
+                <input
+                  autoFocus
+                  type="number"
+                  min={1}
+                  value={goalInput}
+                  onChange={e => setGoalInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleGoalSave();
+                    if (e.key === 'Escape') { setEditingGoal(false); setGoalInput(String(weeklyXPGoal)); }
+                  }}
+                  style={{
+                    width: 70, padding: '4px 6px', textAlign: 'center',
+                    background: 'var(--bg-tertiary)', border: '1px solid var(--accent)',
+                    borderRadius: 6, color: 'var(--text-primary)',
+                    fontSize: 12, fontFamily: 'inherit',
+                  }}
+                />
+                <button
+                  onClick={handleGoalSave}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--accent)', display: 'flex', padding: 2,
+                  }}
+                >
+                  <Check size={12} strokeWidth={2.5} />
+                </button>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
+                  Goal: {weeklyXPGoal.toLocaleString()} XP
+                </span>
+                <button
+                  onClick={() => { setEditingGoal(true); setGoalInput(String(weeklyXPGoal)); }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--text-muted)', display: 'flex', padding: 2,
+                    opacity: 0.5, transition: 'opacity var(--t-base)',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}
+                  title="Edit weekly goal"
+                >
+                  <Edit2 size={11} strokeWidth={2} />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Primary stat cards */}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+          {cards.map(c => (
+            <StatCardUI key={c.label} card={c} />
+          ))}
+        </div>
       </div>
 
       {/* ── Secondary stats ── */}
@@ -215,6 +394,9 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
         ))}
       </div>
 
+      {/* ── Activity Heatmap ── */}
+      <CalendarHeatmap days={data.heatmapDays} accentColor={accentColor} />
+
       {/* ── Charts ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <BarChart title="Daily XP" subtitle="Last 14 days" buckets={data.daily} color="#6366F1" />
@@ -222,6 +404,237 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
       </div>
 
       <BarChart title="Monthly XP" subtitle="Last 6 months" buckets={data.monthly} color="#22C55E" />
+
+      {/* ── Badges ── */}
+      <BadgesSection earnedBadges={earnedBadges} />
+    </div>
+  );
+}
+
+// ─── Calendar Heatmap ─────────────────────────────────────────────────────────
+
+function CalendarHeatmap({
+  days,
+  accentColor,
+}: {
+  days: { date: Date; xp: number; tasks: number }[];
+  accentColor: string;
+}) {
+  // Build 15 weeks × 7 days grid (105 days, oldest first)
+  // days[0] is 104 days ago, days[104] is today
+  // We want columns = weeks (15), rows = days of week (7, Sun=0)
+  // Pad the start so first day falls on correct weekday
+  const firstDay = days[0]?.date;
+  const firstDow = firstDay ? firstDay.getDay() : 0; // 0=Sun
+
+  // We'll build 15 columns of 7 cells each = 105 cells total
+  // But we skip the first `firstDow` cells (they're before our data)
+  // Actually: 105 days + padding at start
+  const totalCells = 15 * 7;
+  const paddingCells = firstDow; // days before data in first week column
+
+  // Build array of cells: null = padding, else day data
+  type Cell = { date: Date; xp: number; tasks: number } | null;
+  const cells: Cell[] = [];
+  for (let i = 0; i < paddingCells; i++) cells.push(null);
+  for (const d of days) cells.push(d);
+  // Fill remaining to complete 15 weeks
+  while (cells.length < totalCells) cells.push(null);
+
+  // Group into weeks (columns of 7)
+  const weeks: Cell[][] = [];
+  for (let w = 0; w < 15; w++) {
+    weeks.push(cells.slice(w * 7, w * 7 + 7));
+  }
+
+  // Month labels: find which week each month starts
+  const monthLabels: { week: number; label: string }[] = [];
+  weeks.forEach((week, wi) => {
+    week.forEach((cell) => {
+      if (cell && cell.date.getDate() === 1) {
+        monthLabels.push({ week: wi, label: format(cell.date, 'MMM') });
+      }
+    });
+  });
+
+  function cellColor(xp: number): string {
+    if (xp === 0) return 'var(--bg-hover)';
+    if (xp <= 20) return accentColor + '40';
+    if (xp <= 50) return accentColor + '80';
+    if (xp <= 100) return accentColor + 'BB';
+    return accentColor;
+  }
+
+  const CELL = 11;
+  const GAP = 2;
+
+  return (
+    <div style={{
+      padding: '20px', borderRadius: 'var(--r-lg)',
+      background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+      boxShadow: 'var(--shadow-xs)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+          Activity
+        </span>
+        <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--text-muted)' }}>
+          Last 15 weeks
+        </span>
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ display: 'inline-block' }}>
+          {/* Month labels row */}
+          <div style={{
+            display: 'flex', gap: GAP,
+            marginBottom: 4, marginLeft: 18,
+            height: 14,
+            position: 'relative',
+          }}>
+            {weeks.map((_, wi) => {
+              const ml = monthLabels.find(m => m.week === wi);
+              return (
+                <div key={wi} style={{
+                  width: CELL, flexShrink: 0,
+                  fontSize: 9, fontWeight: 700, color: 'var(--text-muted)',
+                  letterSpacing: '0.03em',
+                  whiteSpace: 'nowrap',
+                  overflow: 'visible',
+                }}>
+                  {ml ? ml.label : ''}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Grid */}
+          <div style={{ display: 'flex', gap: GAP }}>
+            {/* Day-of-week labels */}
+            <div style={{
+              display: 'flex', flexDirection: 'column', gap: GAP,
+              marginRight: 2,
+            }}>
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                <div key={i} style={{
+                  width: 12, height: CELL,
+                  fontSize: 8, fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+                  flexShrink: 0,
+                }}>
+                  {i % 2 === 1 ? d : ''}
+                </div>
+              ))}
+            </div>
+
+            {/* Weeks */}
+            {weeks.map((week, wi) => (
+              <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: GAP }}>
+                {week.map((cell, di) => (
+                  <div
+                    key={di}
+                    title={cell ? `${format(cell.date, 'MMM d, yyyy')}: ${cell.xp} XP, ${cell.tasks} task${cell.tasks !== 1 ? 's' : ''}` : ''}
+                    style={{
+                      width: CELL, height: CELL,
+                      borderRadius: 2,
+                      background: cell ? cellColor(cell.xp) : 'transparent',
+                      cursor: cell ? 'default' : 'default',
+                      transition: 'background var(--t-fast)',
+                      flexShrink: 0,
+                    }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* Legend */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            marginTop: 10, justifyContent: 'flex-end',
+            fontSize: 9, fontWeight: 600, color: 'var(--text-muted)',
+          }}>
+            <span>Less</span>
+            {[0, '40', '80', 'BB', 'FF'].map((a, i) => (
+              <div key={i} style={{
+                width: CELL, height: CELL, borderRadius: 2,
+                background: i === 0 ? 'var(--bg-hover)' : accentColor + a,
+                flexShrink: 0,
+              }} />
+            ))}
+            <span>More</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Badges section ───────────────────────────────────────────────────────────
+
+function BadgesSection({ earnedBadges }: { earnedBadges: string[] }) {
+  return (
+    <div style={{
+      padding: '20px', borderRadius: 'var(--r-lg)',
+      background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+      boxShadow: 'var(--shadow-xs)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 16 }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+          Achievements
+        </span>
+        <span style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--text-muted)' }}>
+          {earnedBadges.length} / {ALL_BADGES.length} earned
+        </span>
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+        gap: 10,
+      }}>
+        {ALL_BADGES.map(badge => {
+          const earned = earnedBadges.includes(badge.id);
+          return (
+            <div
+              key={badge.id}
+              title={earned ? badge.desc : `Locked: ${badge.req}`}
+              style={{
+                padding: '14px 12px',
+                borderRadius: 'var(--r-md)',
+                border: `1px solid ${earned ? 'var(--border-strong)' : 'var(--border)'}`,
+                background: earned ? 'var(--bg-tertiary)' : 'transparent',
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                gap: 6, textAlign: 'center',
+                opacity: earned ? 1 : 0.4,
+                filter: earned ? 'none' : 'grayscale(1)',
+                transition: 'all var(--t-base)',
+                cursor: 'default',
+              }}
+            >
+              <span style={{ fontSize: 24, lineHeight: 1 }}>
+                {earned ? badge.icon : '🔒'}
+              </span>
+              <div>
+                <div style={{
+                  fontSize: 11.5, fontWeight: 700,
+                  color: earned ? 'var(--text-primary)' : 'var(--text-muted)',
+                  letterSpacing: '-0.1px',
+                }}>
+                  {badge.label}
+                </div>
+                <div style={{
+                  fontSize: 10, fontWeight: 500,
+                  color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.3,
+                }}>
+                  {earned ? badge.desc : badge.req}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

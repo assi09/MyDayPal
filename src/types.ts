@@ -4,6 +4,13 @@ export type ViewMode   = 'kanban' | 'list' | 'calendar' | 'roadmap';
 export type Theme      = 'dark' | 'light';
 export type Complexity = 1 | 2 | 3 | 4 | 5;
 
+export type RecurrenceType = 'daily' | 'weekly' | 'monthly';
+
+export interface Recurrence {
+  type: RecurrenceType;
+  interval: number; // every N units
+}
+
 export interface SubTask {
   id: string;
   title: string;
@@ -30,6 +37,8 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   order: number;
+  recurrence?: Recurrence;
+  estimatedMinutes?: number;
 }
 
 export interface Project {
@@ -37,4 +46,5 @@ export interface Project {
   name: string;
   color: string;
   createdAt: string;
+  archived?: boolean;
 }
