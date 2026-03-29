@@ -6,6 +6,8 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "opener:allow-open-path",
+    "opener:allow-open-url",
     "notification:default",
     "notification:allow-request-permission",
     "notification:allow-is-permission-granted",

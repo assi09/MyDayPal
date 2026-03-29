@@ -239,6 +239,7 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
   }
 
   async function handleExport() {
+    try {
     const done = doneTasks(tasks, settings.earlyBirdBonusEnabled);
     const activeProject = activeProjectId ? projects.find(p => p.id === activeProjectId) : null;
     const scope = activeProject ? activeProject.name : 'All Tasks';
@@ -285,6 +286,10 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
       badges: badgeList,
     });
     await printHTML(html);
+    } catch (err) {
+      alert('Export error: ' + (err instanceof Error ? err.message : String(err)));
+      console.error('Export failed:', err);
+    }
   }
 
   const cards: StatCard[] = [

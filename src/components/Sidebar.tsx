@@ -57,28 +57,33 @@ export default function Sidebar() {
   }
 
   async function handleExportProject(projectId: string) {
-    const project = projects.find(p => p.id === projectId);
-    if (!project) return;
-    const projectTasks = tasks.filter(t => t.projectId === projectId);
-    const done = projectTasks.filter(t => t.status === 'done').length;
-    const ongoing = projectTasks.filter(t => t.status === 'ongoing').length;
-    const todo = projectTasks.filter(t => t.status === 'todo').length;
-    const html = generateProjectReport({
-      generatedAt: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      projectName: project.name,
-      projectColor: project.color,
-      tasks: projectTasks.map(t => ({
-        title: t.title,
-        status: t.status,
-        priority: t.priority,
-        dueDate: t.dueDate ?? undefined,
-        subtasksDone: t.subtasks.filter(s => s.completed).length,
-        subtasksTotal: t.subtasks.length,
-        description: t.description || undefined,
-      })),
-      stats: { total: projectTasks.length, done, ongoing, todo },
-    });
-    await printHTML(html);
+    try {
+      const project = projects.find(p => p.id === projectId);
+      if (!project) return;
+      const projectTasks = tasks.filter(t => t.projectId === projectId);
+      const done = projectTasks.filter(t => t.status === 'done').length;
+      const ongoing = projectTasks.filter(t => t.status === 'ongoing').length;
+      const todo = projectTasks.filter(t => t.status === 'todo').length;
+      const html = generateProjectReport({
+        generatedAt: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+        projectName: project.name,
+        projectColor: project.color,
+        tasks: projectTasks.map(t => ({
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+          dueDate: t.dueDate ?? undefined,
+          subtasksDone: t.subtasks.filter(s => s.completed).length,
+          subtasksTotal: t.subtasks.length,
+          description: t.description || undefined,
+        })),
+        stats: { total: projectTasks.length, done, ongoing, todo },
+      });
+      await printHTML(html);
+    } catch (err) {
+      alert('Export error: ' + (err instanceof Error ? err.message : String(err)));
+      console.error('Export failed:', err);
+    }
   }
 
   return (

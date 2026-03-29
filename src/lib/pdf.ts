@@ -1,25 +1,34 @@
-import { writeTextFile } from '@tauri-apps/plugin-fs';
-import { tempDir } from '@tauri-apps/api/path';
-import { openUrl } from '@tauri-apps/plugin-opener';
+/**
+ * Export report as an HTML file that auto-opens the browser's print dialog.
+ * The user can then "Save as PDF" from the print dialog for a perfect result.
+ */
+export function printHTML(html: string) {
+  const filename = `mydaypal-report-${Date.now()}.html`;
 
-export async function printHTML(html: string) {
-  try {
-    // Write HTML to a temp file
-    const tmp = await tempDir();
-    const filename = `mydaypal-report-${Date.now()}.html`;
-    const filepath = `${tmp}${filename}`;
-    await writeTextFile(filepath, html);
+  // Inject a print trigger + print-optimized styles into the HTML
+  const printReady = html.replace(
+    '</head>',
+    `<style>
+      @media print {
+        body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      }
+    </style>
+    <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); }<\/script>
+    </head>`
+  );
 
-    // Open in system default browser where the user can print / Save as PDF
-    await openUrl(`file://${filepath}`);
-  } catch {
-    // Fallback: try opening as data URI
-    try {
-      const encoded = encodeURIComponent(html);
-      await openUrl(`data:text/html;charset=utf-8,${encoded}`);
-    } catch {
-      // Last resort: inject into current page
-      alert('Could not open report. Check your permissions.');
-    }
-  }
+  const blob = new Blob([printReady], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  }, 100);
 }
