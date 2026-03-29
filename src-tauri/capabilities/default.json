@@ -12,6 +12,9 @@
     "notification:allow-notify",
     "notification:allow-show",
     "notification:allow-check-permissions",
-    "core:window:allow-set-badge-label"
+    "core:window:allow-set-badge-label",
+    "fs:default",
+    "fs:allow-temp-write-recursive",
+    "fs:allow-temp-read-recursive"
   ]
 }

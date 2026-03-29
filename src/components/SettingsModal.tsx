@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X, Keyboard } from 'lucide-react';
 import { useStore } from '../store';
 import { AppSettings } from '../types';
 
@@ -359,6 +359,38 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
                 />
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>min</span>
               </div>
+            </SettingRow>
+          </div>
+
+          {/* ── Shortcuts ── */}
+          <SectionHeader>Shortcuts</SectionHeader>
+          <div style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--r-lg)', padding: '0 20px',
+          }}>
+            <SettingRow
+              label="Keyboard Shortcuts"
+              desc="View all available keyboard shortcuts for navigation, task creation, and more"
+            >
+              <button
+                onClick={() => {
+                  onClose();
+                  setTimeout(() => window.dispatchEvent(new CustomEvent('open-shortcuts')), 150);
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', borderRadius: 'var(--r-sm)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-tertiary)', color: 'var(--text-secondary)',
+                  fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: 'inherit', transition: 'all var(--t-base)',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+              >
+                <Keyboard size={13} strokeWidth={2} />
+                View All
+              </button>
             </SettingRow>
           </div>
 

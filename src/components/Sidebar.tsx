@@ -56,7 +56,7 @@ export default function Sidebar() {
     updateProject(id, { archived: false });
   }
 
-  function handleExportProject(projectId: string) {
+  async function handleExportProject(projectId: string) {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
     const projectTasks = tasks.filter(t => t.projectId === projectId);
@@ -78,7 +78,7 @@ export default function Sidebar() {
       })),
       stats: { total: projectTasks.length, done, ongoing, todo },
     });
-    printHTML(html);
+    await printHTML(html);
   }
 
   return (

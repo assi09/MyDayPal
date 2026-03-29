@@ -238,7 +238,7 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
     setEditingGoal(false);
   }
 
-  function handleExport() {
+  async function handleExport() {
     const done = doneTasks(tasks, settings.earlyBirdBonusEnabled);
     const activeProject = activeProjectId ? projects.find(p => p.id === activeProjectId) : null;
     const scope = activeProject ? activeProject.name : 'All Tasks';
@@ -284,7 +284,7 @@ export default function XPDashboard({ tasks }: { tasks: Task[] }) {
       topTasks,
       badges: badgeList,
     });
-    printHTML(html);
+    await printHTML(html);
   }
 
   const cards: StatCard[] = [

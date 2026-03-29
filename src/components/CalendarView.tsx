@@ -36,7 +36,7 @@ export default function CalendarView() {
   const [newDueDate, setNewDueDate] = useState<string>('');
   const [hoveredDay, setHoveredDay] = useState<number>(-1);
 
-  function handleExportCalendar() {
+  async function handleExportCalendar() {
     const monthStart = startOfMonth(current);
     const monthEnd = endOfMonth(current);
     const gridStart = startOfWeek(monthStart);
@@ -88,7 +88,7 @@ export default function CalendarView() {
       },
       taskList,
     });
-    printHTML(html);
+    await printHTML(html);
   }
 
   const monthStart = startOfMonth(current);
